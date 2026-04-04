@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --color-credora-ink: #0c1222;
+  --color-credora-mist: #e8edf5;
+  --color-credora-slate: #5a6578;
+  --color-credora-accent: #2563eb;
+  --color-credora-accent-soft: #dbeafe;
+  --color-credora-surface: #f6f8fc;
+  --color-credora-card: #ffffff;
+  --color-credora-line: #d8e0ed;
+  --color-credora-success: #059669;
+  --color-credora-warning: #d97706;
+}
+
+@layer base {
+  * {
+    @apply border-[color:var(--color-credora-line)];
+  }
+  body {
+    @apply min-h-dvh bg-[var(--color-credora-surface)] text-[var(--color-credora-ink)] antialiased;
+  }
+}
