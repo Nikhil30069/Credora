@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { SignupForm } from "@/components/auth/signup-form";
+import { Suspense } from "react";
+import { LoginForm } from "@/components/auth/login-form";
 
 export default function SignupPage() {
   return (
@@ -13,12 +14,15 @@ export default function SignupPage() {
         </Link>
       </header>
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 pb-16">
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-credora-ink)]">Create your account</h1>
-        <p className="mt-2 text-sm text-[var(--color-credora-slate)]">
-          Use your email and a password. You can add card metadata after signing in.
+        <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-credora-ink)]">Join Credora</h1>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--color-credora-slate)]">
+          Sign in with your organization&apos;s Google account. You need a credit card to be verified after signing in
+          for the first time. Your email domain defines your trusted community pool.
         </p>
         <div className="mt-8 rounded-2xl border border-[var(--color-credora-line)] bg-white p-6 shadow-sm">
-          <SignupForm />
+          <Suspense>
+            <LoginForm />
+          </Suspense>
         </div>
       </main>
     </div>

@@ -6,31 +6,42 @@ import type { ShareRequestStatus } from "@/types/database";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
-export async function createShareRequest(
-  cardId: string,
-  message: string | null,
-): Promise<ActionResult> {
+export type ShareRequestPayload = {
+  cardId: string;
+  amount: number;
+  purpose: string;
+  platform: string;
+  message: string | null;
+};
+
+export async function createShareRequest(payload: ShareRequestPayload): Promise<ActionResult> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Sign in required." };
 
+  if (!payload.amount || payload.amount <= 0) return { ok: false, error: "Enter a valid amount." };
+  if (!payload.purpose.trim()) return { ok: false, error: "Purpose is required." };
+  if (!payload.platform.trim()) return { ok: false, error: "Platform is required." };
+
   const { data: card, error: cardErr } = await supabase
     .from("cards")
     .select("owner_id")
-    .eq("id", cardId)
+    .eq("id", payload.cardId)
     .maybeSingle();
 
   if (cardErr || !card) return { ok: false, error: "Card not found." };
   if (card.owner_id === user.id) return { ok: false, error: "You cannot request your own card." };
 
-  const trimmed = message?.trim() || null;
   const { error } = await supabase.from("share_requests").insert({
-    card_id: cardId,
+    card_id: payload.cardId,
     requester_id: user.id,
     owner_id: card.owner_id,
-    message: trimmed,
+    amount: payload.amount,
+    purpose: payload.purpose.trim(),
+    platform: payload.platform.trim(),
+    message: payload.message?.trim() || null,
   });
 
   if (error) {

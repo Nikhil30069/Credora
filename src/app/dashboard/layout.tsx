@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/actions/auth";
+import { LoginNotificationsModal } from "@/components/dashboard/login-notifications-modal";
+import { domainDisplayName } from "@/lib/blocked-domains";
+import { profileNeedsBasics } from "@/lib/profile-basics";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -8,6 +12,22 @@ export default async function DashboardLayout({ children }: { children: React.Re
     data: { user },
   } = await supabase.auth.getUser();
   const email = user?.email ?? "";
+
+  let userDomain = "";
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("signup_card_bin_verified_at, domain, full_name, phone")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (!profile?.signup_card_bin_verified_at) {
+      redirect("/verify-card");
+    }
+    if (profileNeedsBasics(profile)) {
+      redirect("/complete-profile");
+    }
+    userDomain = profile?.domain ?? "";
+  }
 
   return (
     <div className="min-h-dvh bg-[var(--color-credora-surface)]">
@@ -23,6 +43,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
             Credora
           </Link>
           <div className="flex items-center gap-3 sm:gap-4">
+            {userDomain ? (
+              <span className="hidden rounded-full bg-[var(--color-credora-accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--color-credora-accent)] sm:inline-flex">
+                {domainDisplayName(userDomain)}
+              </span>
+            ) : null}
             <span className="max-w-[200px] truncate text-sm text-[var(--color-credora-slate)] sm:max-w-xs" title={email}>
               {email}
             </span>
@@ -37,6 +62,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
         </div>
       </header>
+      <LoginNotificationsModal />
       {children}
     </div>
   );

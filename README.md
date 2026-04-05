@@ -23,6 +23,8 @@ A web app for coordinating **card-linked offers** between trusted members: list 
 
 Supabase’s **anon** key only uses the REST API; it **cannot** run `CREATE TABLE` (that would be unsafe). You apply the schema with a normal **Postgres** connection, once:
 
+If you see **`getaddrinfo ENOTFOUND db.<ref>.supabase.co`**, your network likely lacks IPv6 for the direct host. The `db:apply` script automatically falls back to Supabase’s **session pooler** (IPv4). You can also set **`SUPABASE_POOLER_REGION`** (e.g. `ap-south-1`) in `.env.local` to try your region first.
+
 **Option A — password in the terminal (no `DATABASE_URL` in files)**  
 Keep `NEXT_PUBLIC_SUPABASE_URL` in `.env.local` (you already have it). Then run:
 
@@ -49,6 +51,13 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+### Dev stability
+
+- `npm run dev` uses `.next/` (same as `next build`). Use `npm run dev:clean` if the dev cache gets corrupted.
+- `npm run dev` is idempotent: if Credora is already running locally, it prints the existing URL instead of starting another server and corrupting chunks.
+- `npm run dev:clean` clears the dev cache before starting.
+- `./scripts/dev.sh --clean -p 3001` is the safest recovery command if local dev ever shows missing chunk or manifest errors.
 
 ## App structure
 

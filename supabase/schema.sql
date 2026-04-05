@@ -10,6 +10,9 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now()
 );
 
+alter table public.profiles
+  add column if not exists signup_card_bin_verified_at timestamptz;
+
 alter table public.profiles enable row level security;
 
 drop policy if exists "profiles_select_own" on public.profiles;
@@ -101,6 +104,41 @@ create table if not exists public.share_requests (
   created_at timestamptz not null default now(),
   constraint share_requests_requester_not_owner check (requester_id <> owner_id)
 );
+
+-- Structured request details (idempotent for DBs created before these columns existed)
+alter table public.share_requests
+  add column if not exists amount numeric(12, 2),
+  add column if not exists purpose text,
+  add column if not exists platform text;
+
+alter table public.share_requests
+  add column if not exists updated_at timestamptz;
+
+update public.share_requests
+set updated_at = created_at
+where updated_at is null;
+
+alter table public.share_requests
+  alter column updated_at set default now();
+
+alter table public.share_requests
+  alter column updated_at set not null;
+
+create or replace function public.share_requests_set_updated_at()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists share_requests_set_updated_at on public.share_requests;
+create trigger share_requests_set_updated_at
+  before update on public.share_requests
+  for each row execute function public.share_requests_set_updated_at();
 
 create unique index if not exists share_requests_one_pending_per_card_requester
   on public.share_requests (card_id, requester_id)

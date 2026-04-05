@@ -1,14 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { LoginForm } from "@/components/auth/login-form";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ reason?: string; next?: string }>;
-}) {
-  const sp = await searchParams;
-  const sessionHint = sp.reason === "session";
-
+export default function LoginPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-[var(--color-credora-surface)]">
       <header className="flex items-center justify-between px-6 py-6">
@@ -20,15 +14,14 @@ export default async function LoginPage({
         </Link>
       </header>
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 pb-16">
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-credora-ink)]">Welcome back</h1>
-        <p className="mt-2 text-sm text-[var(--color-credora-slate)]">Sign in with the email you used to register.</p>
-        {sessionHint ? (
-          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-            Your session was not loaded. Sign in again, or confirm email is disabled in Supabase if you just registered.
-          </p>
-        ) : null}
+        <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-credora-ink)]">Sign in to Credora</h1>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--color-credora-slate)]">
+          Authenticate with your organizational Google account. Your email domain determines which community pool you join.
+        </p>
         <div className="mt-8 rounded-2xl border border-[var(--color-credora-line)] bg-white p-6 shadow-sm">
-          <LoginForm />
+          <Suspense>
+            <LoginForm />
+          </Suspense>
         </div>
       </main>
     </div>

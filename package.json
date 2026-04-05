@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "node scripts/start-dev.mjs",
+    "dev:clean": "node scripts/start-dev.mjs --clean",
+    "dev:turbo": "node scripts/start-dev.mjs --turbo",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
