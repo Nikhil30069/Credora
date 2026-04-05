@@ -1,0 +1,10 @@
+# Next.js on Netlify needs the official runtime (SSR, App Router, API routes).
+# Without it, Netlify only publishes static files and `/` returns Netlify’s default 404.
+[build]
+  command = "npm run build"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[build.environment]
+  NODE_VERSION = "22"
