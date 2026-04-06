@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/actions/auth";
+import { VerifyCardFaq } from "@/components/auth/verify-card-faq";
 import { VerifyCardForm } from "@/components/auth/verify-card-form";
 
 export default async function VerifyCardPage() {
@@ -20,41 +21,46 @@ export default async function VerifyCardPage() {
   if (profile?.signup_card_bin_verified_at) redirect("/complete-profile");
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[var(--color-credora-surface)]">
-      <header className="flex items-center justify-between px-6 py-6">
-        <Link href="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-credora-ink)] text-sm font-bold text-white">
+    <div className="relative flex min-h-dvh flex-col overflow-hidden bg-[var(--color-credora-surface)]">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_-15%,rgba(37,99,235,0.12),transparent)]"
+      />
+      <header className="relative z-10 flex items-center justify-between px-5 py-5 sm:px-8">
+        <Link
+          href="/"
+          className="flex items-center gap-2.5 text-lg font-semibold tracking-tight text-[var(--color-credora-ink)]"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--color-credora-ink)] text-sm font-bold text-white shadow-md shadow-[var(--color-credora-ink)]/20">
             C
           </span>
           Credora
         </Link>
-        <form action={signOut}>
-          <button
-            type="submit"
-            className="rounded-full border border-[var(--color-credora-line)] bg-white px-4 py-2 text-sm font-semibold text-[var(--color-credora-ink)] shadow-sm transition hover:border-[var(--color-credora-accent)]"
-          >
-            Sign out
-          </button>
-        </form>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <VerifyCardFaq />
+          <form action={signOut}>
+            <button
+              type="submit"
+              className="rounded-full border border-[var(--color-credora-line)] bg-white/90 px-4 py-2 text-sm font-semibold text-[var(--color-credora-ink)] shadow-sm backdrop-blur-sm transition hover:border-[var(--color-credora-accent)] hover:bg-white"
+            >
+              Sign out
+            </button>
+          </form>
+        </div>
       </header>
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 pb-16">
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-credora-ink)]">Verify your credit card</h1>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--color-credora-slate)]">
-          We use the public{" "}
-          <a
-            href="https://binlist.net/"
-            target="_blank"
-            rel="noreferrer"
-            className="font-medium text-[var(--color-credora-accent)] underline-offset-2 hover:underline"
-          >
-            BINlist
-          </a>{" "}
-          directory to confirm your digits belong to a known{" "}
-          <span className="font-semibold text-[var(--color-credora-ink)]">credit</span> card range (not debit). This does not prove you
-          hold the card or run a charge — it is a signup gate only. We do not store your
-          BIN after this step.
-        </p>
-        <div className="mt-8 rounded-2xl border border-[var(--color-credora-line)] bg-white p-6 shadow-sm">
+
+      <main className="relative z-10 mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-5 pb-20 pt-4 sm:px-8">
+        <div className="text-center sm:text-left">
+          <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-credora-ink)] sm:text-4xl">
+            Verify your card
+          </h1>
+          <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-[var(--color-credora-slate)] sm:mx-0">
+            Enter the first <span className="font-semibold text-[var(--color-credora-ink)]">6–8 digits</span> of any of
+            your credit cards to continue.
+          </p>
+        </div>
+
+        <div className="mt-10 rounded-3xl border border-[var(--color-credora-line)]/80 bg-white p-6 shadow-[0_24px_48px_-12px_rgba(12,18,34,0.12)] sm:p-8">
           <VerifyCardForm />
         </div>
       </main>

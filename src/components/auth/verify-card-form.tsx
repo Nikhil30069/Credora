@@ -69,17 +69,17 @@ export function VerifyCardForm() {
         inputMode="numeric"
         autoComplete="off"
         required
-        label="First 6–8 digits of your credit card"
-        hint="The BIN (first digits on the front). Never enter your full card number or CVV here."
+        label="First digits"
+        hint="Credit cards only. Never enter your full number or CVV."
         placeholder="e.g. 457173"
         maxLength={8}
         pattern="[0-9]{6,8}"
       />
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Verifying…" : "Verify and continue"}
+      <Button type="submit" className="w-full py-3 text-[15px]" disabled={pending}>
+        {pending ? "Verifying…" : "Continue"}
       </Button>
       <p className="text-center text-sm text-[var(--color-credora-slate)]">
-        <Link href="/" className="font-semibold text-[var(--color-credora-accent)] hover:underline">
+        <Link href="/" className="font-medium text-[var(--color-credora-accent)] underline-offset-2 hover:underline">
           Back to home
         </Link>
       </p>

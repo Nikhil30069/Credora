@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
@@ -32,38 +32,11 @@ for (let i = 0; i < rawArgs.length; i += 1) {
 }
 
 const safePort = /^\d+$/.test(port) ? port : "3000";
-// Keep dev lock under .next so there is a single output dir (matches `next build` / `rm -rf .next`).
 const nextDir = resolve(root, ".next");
-const lockFile = resolve(nextDir, "credora-dev-lock.json");
-
-function isPidAlive(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function readLock() {
-  try {
-    return JSON.parse(readFileSync(lockFile, "utf8"));
-  } catch {
-    return null;
-  }
-}
-
-const existingLock = readLock();
-if (existingLock?.pid && isPidAlive(existingLock.pid)) {
-  const url = `http://localhost:${existingLock.port ?? safePort}`;
-  console.log(`Credora dev server is already running at ${url}`);
-  process.exit(0);
-}
 
 if (clean) {
   rmSync(nextDir, { recursive: true, force: true });
 }
-mkdirSync(nextDir, { recursive: true });
 
 const nextArgs = ["next", "dev", ...passthrough];
 if (!passthrough.includes("-p") && !passthrough.includes("--port")) {
@@ -79,15 +52,7 @@ const child = spawn(process.execPath, [resolve(root, "node_modules/next/dist/bin
   env: { ...process.env },
 });
 
-writeFileSync(
-  lockFile,
-  JSON.stringify({ pid: child.pid, port: safePort, turbo, startedAt: new Date().toISOString() }, null, 2),
-);
-
 child.on("exit", (code, signal) => {
-  try {
-    unlinkSync(lockFile);
-  } catch {}
   if (signal) {
     process.kill(process.pid, signal);
     return;

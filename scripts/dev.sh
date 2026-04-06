@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Run the Next.js dev server using the repo-local Node (no global npm required).
 # Dev uses the same `.next/` output directory as `next build` (avoids split caches / missing CSS).
-# Re-running this command is safe: if a Credora dev server is already up, the
-# Node wrapper prints its URL instead of starting a conflicting second process.
+# Run `dev.sh --clean` if you see missing chunks, 500s, or a broken dev cache.
 # Usage: ./scripts/dev.sh                    # normal
 #        ./scripts/dev.sh --clean            # wipe this port's dev cache then start
 #        ./scripts/dev.sh --clean -p 3001    # clean + custom port

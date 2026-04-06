@@ -55,8 +55,9 @@ Open [http://localhost:3000](http://localhost:3000).
 ### Dev stability
 
 - `npm run dev` uses `.next/` (same as `next build`). Use `npm run dev:clean` if the dev cache gets corrupted.
-- `npm run dev` is idempotent: if Credora is already running locally, it prints the existing URL instead of starting another server and corrupting chunks.
-- `npm run dev:clean` clears the dev cache before starting.
+- If the site fails to load, shows missing chunks, or returns 500 after edits, run `npm run dev:clean` (wipes `.next`) and try again.
+- Starting `npm run dev` twice on the same port will fail with “port in use”; stop the other process first.
+- `npm run dev:clean` clears `.next` before starting.
 - `./scripts/dev.sh --clean -p 3001` is the safest recovery command if local dev ever shows missing chunk or manifest errors.
 
 ## App structure
