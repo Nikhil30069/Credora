@@ -1,71 +1,35 @@
+import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
-/* ─── Brand logo tiles ───────────────────────────────────────────────── */
-function NetflixLogo() {
+/* ─── Brand logo tiles (SVGs in /public/brands — replace files to update) ─ */
+function BrandTile({
+  src,
+  alt,
+  frameClassName,
+  imgClassName,
+}: {
+  src: string;
+  alt: string;
+  frameClassName: string;
+  imgClassName?: string;
+}) {
   return (
-    <div className="flex h-full w-full items-center justify-center rounded-2xl bg-black">
-      <svg viewBox="0 0 111 190" className="h-10 w-auto" fill="none">
-        <path d="M0 0h30.4l27.5 72.9V0h30.4v190H58l-27.6-73V190H0V0z" fill="#E50914"/>
-        <path d="M80.3 0h30.4v190H80.3V0z" fill="#E50914"/>
-      </svg>
-    </div>
-  );
-}
-
-function PrimeLogo() {
-  return (
-    <div className="flex h-full w-full flex-col items-center justify-center rounded-2xl bg-[#00A8E1] gap-0.5 px-3">
-      <span className="text-[11px] font-bold tracking-widest text-white uppercase">prime</span>
-      <svg viewBox="0 0 80 14" className="w-14" fill="none">
-        <path d="M6 4 Q40 14 74 4" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-        <path d="M68 1 L74 4 L68 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-      </svg>
-    </div>
-  );
-}
-
-function SpotifyLogo() {
-  return (
-    <div className="flex h-full w-full items-center justify-center rounded-2xl bg-[#1DB954]">
-      <svg viewBox="0 0 168 168" className="h-12 w-12">
-        <circle cx="84" cy="84" r="84" fill="#1DB954"/>
-        <path d="M120.4 118.5a7 7 0 0 1-9.7 2.3c-26.6-16.3-60.2-20-99.7-10.9a7 7 0 1 1-3.1-13.6c43.3-9.9 80.4-5.6 110.2 12.6a7 7 0 0 1 2.3 9.6zM133 88.4a8.7 8.7 0 0 1-12 3c-30.5-18.8-77-24.2-113.1-13.2a8.7 8.7 0 1 1-5-16.7c41.3-12.2 92.7-6.3 127.8 15.1a8.7 8.7 0 0 1 2.3 11.8zM134.3 57.8C97.5 36.3 35.6 34.3 0 45.1a10.5 10.5 0 1 1-5.9-20.1C38.2 13 107.8 15.4 151.5 40.5a10.5 10.5 0 1 1-17.2 17.3z" fill="white"/>
-      </svg>
-    </div>
-  );
-}
-
-function AmexLogo() {
-  return (
-    <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-to-br from-[#007BC1] to-[#005B9A]">
-      <div className="text-center">
-        <div className="text-[9px] font-semibold tracking-[0.3em] text-white/70 uppercase">American</div>
-        <div className="text-xl font-black tracking-tight text-white leading-none">AMEX</div>
-        <div className="mt-0.5 h-0.5 w-8 mx-auto bg-white/40 rounded" />
-      </div>
-    </div>
-  );
-}
-
-function HotstarLogo() {
-  return (
-    <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-to-br from-[#1E0A50] to-[#5E35B1]">
-      <div className="text-center">
-        <span className="text-xl font-black text-white tracking-tight">Jio</span>
-        <span className="ml-0.5 text-xl font-black text-[#FFD700] tracking-tight">hotstar</span>
-      </div>
-    </div>
-  );
-}
-
-function VisaLogo() {
-  return (
-    <div className="flex h-full w-full items-center justify-center rounded-2xl bg-white shadow-inner border border-gray-100">
-      <svg viewBox="0 0 138 44" className="h-8 w-auto" fill="none">
-        <path d="M52.3 0.8L34.3 43.2H22.8L14 9.3C13.5 7.3 13 6.5 11.4 5.6 8.7 4.1 4.4 2.7 0.7 1.9L1 0.8h18.6c2.4 0 4.5 1.6 5 4.2l4.6 24.4L40.6 0.8H52.3zm47.9 28.8c0-11.3-15.6-11.9-15.5-17 0-1.5 1.5-3.2 4.7-3.6 1.6-.2 5.9-.4 10.9 1.9l1.9-9a30 30 0 00-10.3-1.9c-10.9 0-18.6 5.8-18.7 14.1-.1 6.1 5.5 9.5 9.6 11.6 4.3 2 5.7 3.4 5.7 5.2 0 2.8-3.4 4-6.6 4-5.5.1-8.7-1.5-11.3-2.7L69 41.3c2.6 1.2 7.4 2.2 12.4 2.3 11.7 0 19.3-5.7 19.4-14.6l-.6.6zm29 13.6H138L130.3.8h-8.2a5 5 0 00-4.7 3.1L101.7 43.2h11.7l2.3-6.4h14.3l1.2 6.4zm-12.4-15.3l5.9-16.2 3.4 16.2h-9.3zM64.2.8L54.8 43.2H43.7L53 .8h11.2z" fill="#1A1F71"/>
-      </svg>
+    <div
+      className={`flex h-full w-full items-center justify-center overflow-hidden rounded-2xl p-3 sm:p-4 ${frameClassName}`}
+    >
+      <Image
+        src={src}
+        alt={alt}
+        width={320}
+        height={160}
+        unoptimized
+        className={
+          imgClassName ??
+          "h-auto max-h-11 w-full max-w-[7.5rem] object-contain sm:max-h-[3.25rem]"
+        }
+      />
     </div>
   );
 }
@@ -168,23 +132,49 @@ export default async function HomePage() {
           <div className="grid grid-cols-3 gap-3 lg:gap-4">
             {/* Row 1 */}
             <div className="aspect-square">
-              <NetflixLogo />
+              <BrandTile
+                src="/brands/netflix.svg"
+                alt="Netflix"
+                frameClassName="bg-black"
+              />
             </div>
             <div className="aspect-square">
-              <PrimeLogo />
+              <BrandTile
+                src="/brands/prime.svg"
+                alt="Prime Video"
+                frameClassName="bg-[#E8F8FD]"
+                imgClassName="max-h-10 w-full max-w-[8.5rem] object-contain sm:max-h-12"
+              />
             </div>
             <div className="aspect-square">
-              <AmexLogo />
+              <BrandTile
+                src="/brands/americanexpress.svg"
+                alt="American Express"
+                frameClassName="bg-[#006FCF]"
+              />
             </div>
             {/* Row 2 */}
             <div className="aspect-square">
-              <SpotifyLogo />
+              <BrandTile
+                src="/brands/spotify.svg"
+                alt="Spotify"
+                frameClassName="bg-[#1DB954]"
+              />
             </div>
             <div className="aspect-square">
-              <HotstarLogo />
+              <BrandTile
+                src="/brands/hotstar.svg"
+                alt="Disney+ Hotstar"
+                frameClassName="bg-white shadow-inner ring-1 ring-gray-100"
+                imgClassName="max-h-9 w-full max-w-[9rem] object-contain sm:max-h-11"
+              />
             </div>
             <div className="aspect-square">
-              <VisaLogo />
+              <BrandTile
+                src="/brands/visa.svg"
+                alt="Visa"
+                frameClassName="bg-white shadow-inner ring-1 ring-gray-100"
+              />
             </div>
           </div>
         </div>
