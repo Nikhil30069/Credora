@@ -110,12 +110,12 @@ export function ShareRequestDialog({ cardId, label }: Props) {
                   </svg>
                 </div>
                 <p className="text-lg font-semibold text-[var(--color-credora-ink)]">Request sent!</p>
-                <p className="text-sm text-[var(--color-credora-slate)]">The card owner will review your request.</p>
+                <p className="text-sm text-[var(--color-credora-slate)]">The owner will review your request.</p>
               </div>
             ) : (
               <>
                 <div className="border-b border-[var(--color-credora-line)] px-6 py-5">
-                  <h3 className="text-lg font-semibold text-[var(--color-credora-ink)]">Request card share</h3>
+                  <h3 className="text-lg font-semibold text-[var(--color-credora-ink)]">Request share</h3>
                   <p className="mt-1 text-sm text-[var(--color-credora-slate)]">
                     For <span className="font-medium text-[var(--color-credora-ink)]">{label}</span>
                   </p>
@@ -191,7 +191,7 @@ export function ShareRequestDialog({ cardId, label }: Props) {
                       onChange={(e) => setMessage(e.target.value)}
                       rows={2}
                       className="w-full resize-none rounded-xl border border-[var(--color-credora-line)] bg-[var(--color-credora-surface)] px-3.5 py-2.5 text-sm outline-none transition focus:border-[var(--color-credora-accent)] focus:bg-white focus:ring-2 focus:ring-[var(--color-credora-accent-soft)]"
-                      placeholder="Anything else you want the card owner to know?"
+                      placeholder="Anything else you want the owner to know?"
                     />
                   </label>
 

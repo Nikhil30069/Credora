@@ -2,14 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ShareRequestDialog } from "./share-request-dialog";
+import { ASSET_META, type AssetType } from "@/types/database";
 
-type CardResult = {
+type SearchResult = {
   id: string;
   owner_id: string;
+  asset_type: AssetType;
   brand: string;
-  last_four: string;
+  last_four: string | null;
   nickname: string;
   issuer: string | null;
+  plan_tier: string | null;
   created_at: string;
   rank: number;
   owner_name?: string;
@@ -38,6 +41,19 @@ function relevanceBadge(rank: number) {
   return { label: "Fuzzy", cls: "bg-zinc-100 text-zinc-600 ring-zinc-200" };
 }
 
+function assetSubtitle(c: SearchResult, query: string) {
+  const parts: React.ReactNode[] = [];
+  if (c.asset_type === "credit_card") {
+    parts.push(highlightMatch(c.brand, query));
+    if (c.issuer) parts.push(<> · {highlightMatch(c.issuer, query)}</>);
+    if (c.last_four) parts.push(<> · •••• {c.last_four}</>);
+  } else {
+    parts.push(highlightMatch(c.brand, query));
+    if (c.plan_tier) parts.push(<> · {highlightMatch(c.plan_tier, query)}</>);
+  }
+  return parts;
+}
+
 function SkeletonCard() {
   return (
     <div className="flex animate-pulse items-center gap-4 px-6 py-4">
@@ -52,7 +68,7 @@ function SkeletonCard() {
 
 export function CardSearch() {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<CardResult[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -104,7 +120,7 @@ export function CardSearch() {
     <section className="mt-10 space-y-6">
       <div className="rounded-2xl border border-[var(--color-credora-line)] bg-white p-5 shadow-sm">
         <label htmlFor="card-search" className="block text-sm font-medium text-[var(--color-credora-ink)]">
-          Search by card name, network, or issuer
+          Search by card, subscription, or owner name
         </label>
         <div className="relative mt-2">
           <div className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center">
@@ -118,7 +134,7 @@ export function CardSearch() {
             autoComplete="off"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="e.g. Amex, HDFC, Sapphire, Visa Platinum…"
+            placeholder="e.g. Netflix, Amex, HDFC, Spotify Premium…"
             className="w-full rounded-xl border border-[var(--color-credora-line)] bg-[var(--color-credora-surface)] py-3 pl-10 pr-4 text-sm outline-none transition placeholder:text-[var(--color-credora-slate)] focus:border-[var(--color-credora-accent)] focus:bg-white focus:ring-2 focus:ring-[var(--color-credora-accent-soft)]"
           />
           {loading ? (
@@ -128,7 +144,7 @@ export function CardSearch() {
           ) : null}
         </div>
         <p className="mt-2 text-xs text-[var(--color-credora-slate)]">
-          Type at least 2 characters. Results rank by relevance — exact matches first, then similar names.
+          Type at least 2 characters. Results rank by relevance — exact matches first.
         </p>
       </div>
 
@@ -139,10 +155,9 @@ export function CardSearch() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
           </div>
-          <h3 className="text-base font-semibold text-[var(--color-credora-ink)]">Discover cards in the pool</h3>
+          <h3 className="text-base font-semibold text-[var(--color-credora-ink)]">Discover assets in your community</h3>
           <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-[var(--color-credora-slate)]">
-            Search by card network (Visa, Amex), bank (HDFC, Chase), or card name. We will
-            find the closest matches across all listed cards.
+            Search for credit cards, subscriptions, or anything your community members have listed. Try &ldquo;Netflix&rdquo;, &ldquo;Visa&rdquo;, or &ldquo;Spotify&rdquo;.
           </p>
         </div>
       ) : null}
@@ -152,15 +167,14 @@ export function CardSearch() {
           <SkeletonCard />
           <SkeletonCard />
           <SkeletonCard />
-          <SkeletonCard />
         </div>
       ) : null}
 
       {searched && !loading && results.length === 0 ? (
         <div className="rounded-2xl border border-[var(--color-credora-line)] bg-white px-6 py-12 text-center shadow-sm">
           <p className="text-sm text-[var(--color-credora-slate)]">
-            No cards match <span className="font-semibold text-[var(--color-credora-ink)]">&ldquo;{query}&rdquo;</span>.
-            Try a different network, bank name, or card nickname.
+            No assets match <span className="font-semibold text-[var(--color-credora-ink)]">&ldquo;{query}&rdquo;</span>.
+            Try a different name or category.
           </p>
         </div>
       ) : null}
@@ -171,7 +185,7 @@ export function CardSearch() {
             <div className="flex items-baseline justify-between">
               <h2 className="text-base font-semibold text-[var(--color-credora-ink)]">Results</h2>
               <span className="text-xs tabular-nums text-[var(--color-credora-slate)]">
-                {results.length} card{results.length !== 1 ? "s" : ""}
+                {results.length} asset{results.length !== 1 ? "s" : ""}
               </span>
             </div>
             <p className="mt-1 text-sm text-[var(--color-credora-slate)]">
@@ -181,7 +195,8 @@ export function CardSearch() {
           <ul className="divide-y divide-[var(--color-credora-line)]">
             {results.map((c) => {
               const badge = relevanceBadge(c.rank);
-              const label = `${c.nickname} · ${c.brand}${c.issuer ? ` · ${c.issuer}` : ""} · •••• ${c.last_four}`;
+              const meta = ASSET_META[c.asset_type] ?? ASSET_META.other;
+              const label = `${meta.icon} ${c.nickname} · ${c.brand}${c.plan_tier ? ` · ${c.plan_tier}` : ""}${c.last_four ? ` · •••• ${c.last_four}` : ""}`;
               return (
                 <li
                   key={c.id}
@@ -189,6 +204,9 @@ export function CardSearch() {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${meta.color}`}>
+                        {meta.icon} {meta.label}
+                      </span>
                       <p className="font-semibold text-[var(--color-credora-ink)]">
                         {highlightMatch(c.nickname, query)}
                       </p>
@@ -197,15 +215,7 @@ export function CardSearch() {
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-[var(--color-credora-slate)]">
-                      {highlightMatch(c.brand, query)}
-                      {c.issuer ? (
-                        <>
-                          {" · "}
-                          {highlightMatch(c.issuer, query)}
-                        </>
-                      ) : null}
-                      {" · •••• "}
-                      {c.last_four}
+                      {assetSubtitle(c, query)}
                     </p>
                     {c.owner_name ? (
                       <p className="mt-1 text-xs text-[var(--color-credora-slate)]">

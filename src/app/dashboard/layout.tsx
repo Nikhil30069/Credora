@@ -17,12 +17,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("signup_card_bin_verified_at, domain, full_name, phone")
+      .select("domain, full_name, phone")
       .eq("id", user.id)
       .maybeSingle();
-    if (!profile?.signup_card_bin_verified_at) {
-      redirect("/verify-card");
-    }
     if (profileNeedsBasics(profile)) {
       redirect("/complete-profile");
     }

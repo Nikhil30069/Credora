@@ -31,8 +31,8 @@ export async function createShareRequest(payload: ShareRequestPayload): Promise<
     .eq("id", payload.cardId)
     .maybeSingle();
 
-  if (cardErr || !card) return { ok: false, error: "Card not found." };
-  if (card.owner_id === user.id) return { ok: false, error: "You cannot request your own card." };
+  if (cardErr || !card) return { ok: false, error: "Asset not found." };
+  if (card.owner_id === user.id) return { ok: false, error: "You cannot request your own asset." };
 
   const { error } = await supabase.from("share_requests").insert({
     card_id: payload.cardId,

@@ -41,13 +41,6 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(dest);
   }
 
-  if (!user && pathname.startsWith("/verify-card")) {
-    const dest = request.nextUrl.clone();
-    dest.pathname = "/login";
-    dest.searchParams.set("next", "/verify-card");
-    return NextResponse.redirect(dest);
-  }
-
   if (!user && pathname.startsWith("/complete-profile")) {
     const dest = request.nextUrl.clone();
     dest.pathname = "/login";
@@ -56,11 +49,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && user.email && isBlockedDomain(user.email)) {
-    if (
-      pathname.startsWith("/dashboard") ||
-      pathname.startsWith("/verify-card") ||
-      pathname.startsWith("/complete-profile")
-    ) {
+    if (pathname.startsWith("/dashboard") || pathname.startsWith("/complete-profile")) {
       await supabase.auth.signOut();
       const dest = request.nextUrl.clone();
       dest.pathname = "/login";

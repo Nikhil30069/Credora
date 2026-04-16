@@ -1,17 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { AddCardForm } from "@/components/dashboard/add-card-form";
+import { AddAssetForm } from "@/components/dashboard/add-asset-form";
 import { RemoveCardButton } from "@/components/dashboard/remove-card-button";
 import { RequestActions } from "@/components/dashboard/request-actions";
 import { CardSearch } from "@/components/dashboard/card-search";
 import { SharePhoneToggle } from "@/components/dashboard/share-phone-toggle";
 import { domainDisplayName } from "@/lib/blocked-domains";
-import type { CardRow, ShareRequestStatus } from "@/types/database";
+import { ASSET_META, type AssetType, type CardRow, type ShareRequestStatus } from "@/types/database";
 
 type Tab = "uploaded" | "search" | "requests";
 
-type CardNested = Pick<CardRow, "id" | "brand" | "last_four" | "nickname" | "issuer">;
+type CardNested = Pick<CardRow, "id" | "asset_type" | "brand" | "last_four" | "nickname" | "issuer" | "plan_tier">;
 
 type RequestRow = {
   id: string;
@@ -119,7 +119,8 @@ function RequestCard({
   const sc = statusConfig(r.status);
   const isAccepted = r.status === "accepted";
   const showEmail = isAccepted;
-  const phoneLabel = role === "owner" ? "Requester phone" : "Card owner phone";
+  const phoneLabel = role === "owner" ? "Requester phone" : "Owner phone";
+  const assetMeta = card ? (ASSET_META[(card.asset_type ?? "credit_card") as AssetType] ?? ASSET_META.other) : null;
 
   return (
     <li className="group relative overflow-hidden rounded-xl border border-[var(--color-credora-line)] bg-white transition hover:border-[var(--color-credora-accent)]/30 hover:shadow-md">
@@ -136,9 +137,14 @@ function RequestCard({
             <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${sc.cls}`}>
               <span>{sc.icon}</span> {r.status}
             </span>
+            {card && assetMeta ? (
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${assetMeta.color}`}>
+                {assetMeta.icon} {assetMeta.label}
+              </span>
+            ) : null}
             {card ? (
               <span className="rounded-lg bg-[var(--color-credora-ink)]/5 px-2 py-0.5 text-xs font-medium text-[var(--color-credora-ink)]">
-                {card.brand} · •••• {card.last_four}
+                {card.brand}{card.last_four ? ` · •••• ${card.last_four}` : ""}{card.plan_tier ? ` · ${card.plan_tier}` : ""}
               </span>
             ) : null}
           </div>
@@ -153,6 +159,7 @@ function RequestCard({
           <p className="text-sm font-medium text-[var(--color-credora-ink)]">
             {card.nickname}
             {card.issuer ? <span className="font-normal text-[var(--color-credora-slate)]"> · {card.issuer}</span> : null}
+            {card.plan_tier && !card.issuer ? <span className="font-normal text-[var(--color-credora-slate)]"> · {card.plan_tier}</span> : null}
           </p>
         ) : null}
 
@@ -235,14 +242,15 @@ export default async function DashboardPage({
 
   const pendingCount = pendingIncoming ?? 0;
 
-  let myCards: Pick<CardRow, "id" | "brand" | "last_four" | "nickname" | "issuer" | "created_at">[] | null = null;
+  type MyCard = Pick<CardRow, "id" | "asset_type" | "brand" | "last_four" | "nickname" | "issuer" | "plan_tier" | "created_at">;
+  let myCards: MyCard[] = [];
   if (tab === "uploaded") {
     const { data } = await supabase
       .from("cards")
-      .select("id, brand, last_four, nickname, issuer, created_at")
+      .select("id, asset_type, brand, last_four, nickname, issuer, plan_tier, created_at")
       .eq("owner_id", user.id)
       .order("created_at", { ascending: false });
-    myCards = data ?? [];
+    myCards = (data ?? []) as unknown as MyCard[];
   }
 
   let incomingRows: RequestRow[] = [];
@@ -256,7 +264,7 @@ export default async function DashboardPage({
     const { data: incoming } = await supabase
       .from("share_requests")
       .select(
-        "id, status, message, amount, purpose, platform, created_at, requester_id, owner_id, owner_phone_visible, requester_phone_visible, cards ( id, brand, last_four, nickname, issuer )",
+        "id, status, message, amount, purpose, platform, created_at, requester_id, owner_id, owner_phone_visible, requester_phone_visible, cards ( id, asset_type, brand, last_four, nickname, issuer, plan_tier )",
       )
       .eq("owner_id", user.id)
       .order("created_at", { ascending: false });
@@ -264,7 +272,7 @@ export default async function DashboardPage({
     const { data: outgoing } = await supabase
       .from("share_requests")
       .select(
-        "id, status, message, amount, purpose, platform, created_at, requester_id, owner_id, owner_phone_visible, requester_phone_visible, cards ( id, brand, last_four, nickname, issuer )",
+        "id, status, message, amount, purpose, platform, created_at, requester_id, owner_id, owner_phone_visible, requester_phone_visible, cards ( id, asset_type, brand, last_four, nickname, issuer, plan_tier )",
       )
       .eq("requester_id", user.id)
       .order("created_at", { ascending: false });
@@ -325,7 +333,7 @@ export default async function DashboardPage({
             Community: <span className="font-bold">{domainDisplayName(userDomain)}</span>
           </span>
           <span className="text-xs text-[var(--color-credora-slate)]">
-            — cards and requests are shared only within <span className="font-medium">@{userDomain}</span> members
+            — assets and requests are shared only within <span className="font-medium">@{userDomain}</span> members
           </span>
         </div>
       ) : null}
@@ -336,7 +344,7 @@ export default async function DashboardPage({
             Your workspace
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-[var(--color-credora-slate)]">
-            Manage your listed cards, discover cards within your community, and coordinate share requests.
+            List cards and subscriptions, discover what your community has, and coordinate share requests.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 rounded-2xl border border-[var(--color-credora-line)] bg-white p-1.5 shadow-sm">
@@ -344,7 +352,7 @@ export default async function DashboardPage({
             <svg className="mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
             </svg>
-            My cards
+            My assets
           </Link>
           <Link href="/dashboard?tab=search" className={tabClass(tab === "search")}>
             <svg className="mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -375,41 +383,51 @@ export default async function DashboardPage({
       {tab === "uploaded" ? (
         <div className="mt-10 grid gap-8 lg:grid-cols-2">
           <section className="rounded-2xl border border-[var(--color-credora-line)] bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-[var(--color-credora-ink)]">Add a card</h2>
+            <h2 className="text-base font-semibold text-[var(--color-credora-ink)]">List an asset</h2>
             <p className="mt-1 text-sm text-[var(--color-credora-slate)]">
-              Only non-sensitive fields are stored—network, nickname, issuer, and last four digits.
+              Credit cards, subscriptions, or any digital perk you&apos;d share with your community.
             </p>
             <div className="mt-6">
-              <AddCardForm />
+              <AddAssetForm />
             </div>
           </section>
 
           <section className="rounded-2xl border border-[var(--color-credora-line)] bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-[var(--color-credora-ink)]">Your listed cards</h2>
+            <h2 className="text-base font-semibold text-[var(--color-credora-ink)]">Your listed assets</h2>
             <p className="mt-1 text-sm text-[var(--color-credora-slate)]">
-              These entries are visible to other signed-in members for discovery.
+              Visible to other signed-in members in your community for discovery.
             </p>
             <ul className="mt-6 space-y-3">
               {(myCards ?? []).length === 0 ? (
                 <li className="rounded-xl border border-dashed border-[var(--color-credora-line)] bg-[var(--color-credora-surface)] px-4 py-8 text-center text-sm text-[var(--color-credora-slate)]">
-                  No cards yet. Add your first card to join the pool.
+                  No assets yet. List your first card or subscription to join the pool.
                 </li>
               ) : (
-                (myCards ?? []).map((c) => (
-                  <li
-                    key={c.id}
-                    className="flex flex-col justify-between gap-3 rounded-xl border border-[var(--color-credora-line)] bg-[var(--color-credora-surface)]/60 px-4 py-4 transition hover:border-[var(--color-credora-accent)]/30 hover:shadow-sm sm:flex-row sm:items-center"
-                  >
-                    <div>
-                      <p className="font-semibold text-[var(--color-credora-ink)]">{c.nickname}</p>
-                      <p className="mt-1 text-sm text-[var(--color-credora-slate)]">
-                        {c.brand}
-                        {c.issuer ? ` · ${c.issuer}` : ""} · •••• {c.last_four}
-                      </p>
-                    </div>
-                    <RemoveCardButton cardId={c.id} />
-                  </li>
-                ))
+                (myCards ?? []).map((c) => {
+                  const meta = ASSET_META[(c.asset_type ?? "credit_card") as AssetType] ?? ASSET_META.other;
+                  return (
+                    <li
+                      key={c.id}
+                      className="flex flex-col justify-between gap-3 rounded-xl border border-[var(--color-credora-line)] bg-[var(--color-credora-surface)]/60 px-4 py-4 transition hover:border-[var(--color-credora-accent)]/30 hover:shadow-sm sm:flex-row sm:items-center"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${meta.color}`}>
+                            {meta.icon} {meta.label}
+                          </span>
+                          <p className="font-semibold text-[var(--color-credora-ink)]">{c.nickname}</p>
+                        </div>
+                        <p className="mt-1 text-sm text-[var(--color-credora-slate)]">
+                          {c.brand}
+                          {c.issuer ? ` · ${c.issuer}` : ""}
+                          {c.last_four ? ` · •••• ${c.last_four}` : ""}
+                          {c.plan_tier ? ` · ${c.plan_tier}` : ""}
+                        </p>
+                      </div>
+                      <RemoveCardButton cardId={c.id} />
+                    </li>
+                  );
+                })
               )}
             </ul>
           </section>
@@ -429,7 +447,7 @@ export default async function DashboardPage({
               </div>
               <div>
                 <h2 className="text-base font-semibold text-[var(--color-credora-ink)]">Incoming</h2>
-                <p className="text-xs text-[var(--color-credora-slate)]">Requests on cards you own</p>
+                <p className="text-xs text-[var(--color-credora-slate)]">Requests on assets you own</p>
               </div>
             </div>
             <ul className="space-y-3">

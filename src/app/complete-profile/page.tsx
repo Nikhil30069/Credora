@@ -14,13 +14,9 @@ export default async function CompleteProfilePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("signup_card_bin_verified_at, full_name, phone")
+    .select("full_name, phone")
     .eq("id", user.id)
     .maybeSingle();
-
-  if (!profile?.signup_card_bin_verified_at) {
-    redirect("/verify-card");
-  }
 
   if (!profileNeedsBasics(profile)) {
     redirect("/dashboard");
