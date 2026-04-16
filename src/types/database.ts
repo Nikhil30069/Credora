@@ -40,6 +40,20 @@ export type ProfileRow = {
   phone?: string | null;
 };
 
+export type Message = {
+  id: string;
+  request_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+};
+
+export type MessageRead = {
+  request_id: string;
+  user_id: string;
+  last_read_at: string;
+};
+
 export const ASSET_META: Record<AssetType, { label: string; icon: string; color: string }> = {
   credit_card: { label: "Credit Card", icon: "💳", color: "bg-blue-100 text-blue-800 ring-blue-200" },
   netflix: { label: "Netflix", icon: "🎬", color: "bg-red-100 text-red-800 ring-red-200" },

@@ -3,9 +3,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AddAssetForm } from "@/components/dashboard/add-asset-form";
 import { RemoveCardButton } from "@/components/dashboard/remove-card-button";
-import { RequestActions } from "@/components/dashboard/request-actions";
 import { CardSearch } from "@/components/dashboard/card-search";
-import { SharePhoneToggle } from "@/components/dashboard/share-phone-toggle";
+import { RequestCardClient } from "@/components/dashboard/request-card";
 import { domainDisplayName } from "@/lib/blocked-domains";
 import { ASSET_META, type AssetType, type CardRow, type ShareRequestStatus } from "@/types/database";
 
@@ -37,180 +36,6 @@ function tabLinkClass(active: boolean) {
   ].join(" ");
 }
 
-function statusConfig(status: ShareRequestStatus) {
-  const map: Record<ShareRequestStatus, { cls: string; icon: string }> = {
-    pending: { cls: "bg-amber-100 text-amber-900 ring-amber-200", icon: "⏳" },
-    accepted: { cls: "bg-emerald-100 text-emerald-900 ring-emerald-200", icon: "✓" },
-    rejected: { cls: "bg-zinc-100 text-zinc-800 ring-zinc-200", icon: "✗" },
-    cancelled: { cls: "bg-zinc-100 text-zinc-600 ring-zinc-200", icon: "—" },
-  };
-  return map[status];
-}
-
-function formatAmount(n: number | null) {
-  if (!n) return null;
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
-}
-
-function DetailPill({ icon, children }: { icon: string; children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-credora-surface)] px-2.5 py-1 text-xs font-medium text-[var(--color-credora-ink)]">
-      <span className="text-[var(--color-credora-slate)]">{icon}</span>
-      {children}
-    </span>
-  );
-}
-
-function EmailReveal({ email, label }: { email: string; label: string }) {
-  return (
-    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2.5">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-200/70">
-        <svg className="h-3.5 w-3.5 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-        </svg>
-      </div>
-      <div className="min-w-0">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-emerald-700/70">{label}</p>
-        <a href={`mailto:${email}`} className="block truncate text-sm font-semibold text-emerald-900 hover:underline">
-          {email}
-        </a>
-      </div>
-    </div>
-  );
-}
-
-function PhoneReveal({ phone, label }: { phone: string; label: string }) {
-  const tel = phone.replace(/\s/g, "");
-  return (
-    <div className="flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2.5">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-200/70">
-        <svg className="h-3.5 w-3.5 text-sky-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"
-          />
-        </svg>
-      </div>
-      <div className="min-w-0">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-sky-800/70">{label}</p>
-        <a href={`tel:${tel}`} className="block truncate text-sm font-semibold text-sky-950 hover:underline">
-          {phone}
-        </a>
-      </div>
-    </div>
-  );
-}
-
-function RequestCard({
-  r,
-  role,
-  counterpartEmail,
-  counterpartPhone,
-  myPhoneVisible,
-}: {
-  r: RequestRow;
-  role: "owner" | "requester";
-  counterpartEmail: string;
-  counterpartPhone: string | null;
-  myPhoneVisible: boolean;
-}) {
-  const card = r.cards;
-  const sc = statusConfig(r.status);
-  const isAccepted = r.status === "accepted";
-  const showEmail = isAccepted;
-  const phoneLabel = role === "owner" ? "Requester phone" : "Owner phone";
-  const assetMeta = card ? (ASSET_META[(card.asset_type ?? "credit_card") as AssetType] ?? ASSET_META.other) : null;
-
-  return (
-    <li className="group relative overflow-hidden rounded-xl border border-[var(--color-credora-line)] bg-white transition hover:border-[var(--color-credora-accent)]/30 hover:shadow-md">
-      {isAccepted ? (
-        <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-400" />
-      ) : null}
-      {r.status === "pending" ? (
-        <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-amber-300 via-amber-400 to-orange-400" />
-      ) : null}
-
-      <div className="space-y-3 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${sc.cls}`}>
-              <span>{sc.icon}</span> {r.status}
-            </span>
-            {card && assetMeta ? (
-              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${assetMeta.color}`}>
-                {assetMeta.icon} {assetMeta.label}
-              </span>
-            ) : null}
-            {card ? (
-              <span className="rounded-lg bg-[var(--color-credora-ink)]/5 px-2 py-0.5 text-xs font-medium text-[var(--color-credora-ink)]">
-                {card.brand}{card.last_four ? ` · •••• ${card.last_four}` : ""}{card.plan_tier ? ` · ${card.plan_tier}` : ""}
-              </span>
-            ) : null}
-          </div>
-          <time className="text-[11px] tabular-nums text-[var(--color-credora-slate)]">
-            {new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-            {" · "}
-            {new Date(r.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
-          </time>
-        </div>
-
-        {card ? (
-          <p className="text-sm font-medium text-[var(--color-credora-ink)]">
-            {card.nickname}
-            {card.issuer ? <span className="font-normal text-[var(--color-credora-slate)]"> · {card.issuer}</span> : null}
-            {card.plan_tier && !card.issuer ? <span className="font-normal text-[var(--color-credora-slate)]"> · {card.plan_tier}</span> : null}
-          </p>
-        ) : null}
-
-        {(r.amount || r.purpose || r.platform) ? (
-          <div className="flex flex-wrap gap-2">
-            {r.amount ? <DetailPill icon="₹">{formatAmount(r.amount)}</DetailPill> : null}
-            {r.platform ? <DetailPill icon="🏪">{r.platform}</DetailPill> : null}
-            {r.purpose ? <DetailPill icon="📋">{r.purpose}</DetailPill> : null}
-          </div>
-        ) : null}
-
-        {r.message ? (
-          <p className="rounded-lg bg-[var(--color-credora-surface)] px-3 py-2 text-sm italic text-[var(--color-credora-slate)]">
-            &ldquo;{r.message}&rdquo;
-          </p>
-        ) : null}
-
-        <div className="flex items-center gap-2 text-xs text-[var(--color-credora-slate)]">
-          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-credora-accent-soft)] text-[10px] font-bold text-[var(--color-credora-accent)]">
-            {counterpartEmail.charAt(0).toUpperCase()}
-          </span>
-          {showEmail ? (
-            <a href={`mailto:${counterpartEmail}`} className="font-medium text-[var(--color-credora-ink)] hover:underline">
-              {counterpartEmail}
-            </a>
-          ) : (
-            <span>{role === "owner" ? "Requester" : "Card owner"} · email visible after acceptance</span>
-          )}
-        </div>
-
-        {showEmail ? (
-          <EmailReveal
-            email={counterpartEmail}
-            label={role === "owner" ? "Requester contact" : "Card owner contact"}
-          />
-        ) : null}
-
-        {isAccepted && counterpartPhone?.trim() ? <PhoneReveal phone={counterpartPhone.trim()} label={phoneLabel} /> : null}
-
-        {isAccepted ? (
-          <SharePhoneToggle
-            requestId={r.id}
-            visible={myPhoneVisible}
-          />
-        ) : null}
-
-        <RequestActions requestId={r.id} role={role} status={r.status} />
-      </div>
-    </li>
-  );
-}
 
 export default async function DashboardPage({
   searchParams,
@@ -241,6 +66,9 @@ export default async function DashboardPage({
     .eq("status", "pending");
 
   const pendingCount = pendingIncoming ?? 0;
+
+  const { data: unreadData } = await supabase.rpc("my_unread_message_count");
+  const unreadMessages = Number(unreadData ?? 0);
 
   type MyCard = Pick<CardRow, "id" | "asset_type" | "brand" | "last_four" | "nickname" | "issuer" | "plan_tier" | "created_at">;
   let myCards: MyCard[] = [];
@@ -350,6 +178,11 @@ export default async function DashboardPage({
                 {pendingCount}
               </span>
             ) : null}
+            {unreadMessages > 0 ? (
+              <span className="ml-1 inline-flex min-w-[1.25rem] justify-center rounded-full bg-blue-100 px-1.5 text-[11px] font-bold text-blue-900 tabular-nums ring-1 ring-blue-200/80">
+                {unreadMessages}
+              </span>
+            ) : null}
           </Link>
         </div>
       </nav>
@@ -450,13 +283,14 @@ export default async function DashboardPage({
                 </li>
               ) : (
                 incomingRows.map((r) => (
-                  <RequestCard
+                  <RequestCardClient
                     key={r.id}
                     r={r}
                     role="owner"
                     counterpartEmail={requesterEmail[r.requester_id] ?? "Hidden"}
                     counterpartPhone={counterpartPhoneByRequestId[r.id] ?? null}
                     myPhoneVisible={r.owner_phone_visible ?? false}
+                    myUserId={user.id}
                   />
                 ))
               )}
@@ -488,13 +322,14 @@ export default async function DashboardPage({
                 </li>
               ) : (
                 outgoingRows.map((r) => (
-                  <RequestCard
+                  <RequestCardClient
                     key={r.id}
                     r={r}
                     role="requester"
                     counterpartEmail={ownerEmail[r.owner_id] ?? "Hidden"}
                     counterpartPhone={counterpartPhoneByRequestId[r.id] ?? null}
                     myPhoneVisible={r.requester_phone_visible ?? false}
+                    myUserId={user.id}
                   />
                 ))
               )}
