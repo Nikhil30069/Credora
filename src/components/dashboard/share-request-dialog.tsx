@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 type Props = {
   cardId: string;
   label: string;
+  /** Defaults to primary (blue). Use secondary on dark surfaces (e.g. popular cards). */
+  triggerVariant?: "primary" | "secondary" | "ghost" | "danger";
+  triggerClassName?: string;
 };
 
 const POPULAR_PLATFORMS = [
@@ -16,7 +19,12 @@ const POPULAR_PLATFORMS = [
   "PhonePe", "Paytm", "Other",
 ];
 
-export function ShareRequestDialog({ cardId, label }: Props) {
+export function ShareRequestDialog({
+  cardId,
+  label,
+  triggerVariant = "primary",
+  triggerClassName = "",
+}: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
@@ -80,8 +88,8 @@ export function ShareRequestDialog({ cardId, label }: Props) {
     <>
       <Button
         type="button"
-        variant="primary"
-        className="!py-1.5 !px-4 !text-xs group"
+        variant={triggerVariant}
+        className={`!py-1.5 !px-4 !text-xs group ${triggerClassName}`}
         onClick={() => setOpen(true)}
       >
         <svg className="mr-1 h-3.5 w-3.5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

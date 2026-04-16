@@ -30,7 +30,7 @@ export function CompleteProfileForm({ defaultFullName }: Props) {
       return;
     }
     router.refresh();
-    router.push("/dashboard");
+    router.push("/dashboard?tab=search");
   }
 
   return (

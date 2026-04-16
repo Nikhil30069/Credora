@@ -30,21 +30,23 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="min-h-dvh bg-[var(--color-credora-surface)]">
       <header className="sticky top-0 z-40 border-b border-[var(--color-credora-line)] bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 text-lg font-semibold tracking-tight text-[var(--color-credora-ink)]"
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-credora-ink)] text-sm font-bold text-white">
-              C
-            </span>
-            Credora
-          </Link>
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <Link
+              href="/dashboard?tab=search"
+              className="flex shrink-0 items-center gap-2 text-lg font-semibold tracking-tight text-[var(--color-credora-ink)]"
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-credora-ink)] text-sm font-bold text-white">
+                C
+              </span>
+              Credora
+            </Link>
             {userDomain ? (
-              <span className="hidden rounded-full bg-[var(--color-credora-accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--color-credora-accent)] sm:inline-flex">
-                {domainDisplayName(userDomain)}
+              <span className="hidden max-w-[min(100%,14rem)] truncate rounded-full bg-violet-100 px-3 py-1.5 text-xs font-semibold text-violet-900 ring-1 ring-violet-200/80 sm:inline-flex">
+                Community: <span className="ml-1 font-bold">{domainDisplayName(userDomain)}</span>
               </span>
             ) : null}
+          </div>
+          <div className="flex shrink-0 items-center gap-3 sm:gap-4">
             <span className="max-w-[200px] truncate text-sm text-[var(--color-credora-slate)] sm:max-w-xs" title={email}>
               {email}
             </span>

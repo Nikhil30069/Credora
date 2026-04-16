@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ShareRequestDialog } from "./share-request-dialog";
+import { brandLogoSrc, popularCardTint } from "@/lib/brand-logo";
 import { ASSET_META, type AssetType } from "@/types/database";
 
 type SearchResult = {
@@ -16,6 +18,18 @@ type SearchResult = {
   created_at: string;
   rank: number;
   owner_name?: string;
+};
+
+type PopularItem = {
+  id: string;
+  owner_id: string;
+  asset_type: string;
+  brand: string;
+  last_four: string | null;
+  nickname: string;
+  issuer: string | null;
+  plan_tier: string | null;
+  sharers_count: number;
 };
 
 function highlightMatch(text: string, query: string) {
@@ -66,13 +80,87 @@ function SkeletonCard() {
   );
 }
 
-export function CardSearch() {
+function PopularAssetCard({
+  item,
+  styleDelay,
+  onPickSearch,
+}: {
+  item: PopularItem;
+  styleDelay: number;
+  onPickSearch: (q: string) => void;
+}) {
+  const logo = brandLogoSrc(item.brand);
+  const tint = popularCardTint(item.brand);
+  const title = item.nickname?.trim() || `${item.brand}${item.plan_tier ? ` ${item.plan_tier}` : ""}`;
+  const meta = ASSET_META[(item.asset_type ?? "other") as AssetType] ?? ASSET_META.other;
+  const label = `${meta.icon} ${item.nickname} · ${item.brand}${item.plan_tier ? ` · ${item.plan_tier}` : ""}${item.last_four ? ` · •••• ${item.last_four}` : ""}`;
+
+  return (
+    <div
+      className="group relative min-w-[min(100%,280px)] max-w-[280px] flex-[0_0_auto] animate-slide-up rounded-2xl shadow-lg ring-1 ring-white/10 transition duration-300 hover:-translate-y-1 hover:shadow-xl motion-reduce:animate-none motion-reduce:transition-none"
+      style={{ animationDelay: `${styleDelay}ms` }}
+    >
+      <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${tint}`} />
+      {logo ? (
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
+          <Image
+            src={logo}
+            alt=""
+            width={200}
+            height={200}
+            unoptimized
+            className="absolute left-1/2 top-1/2 h-[140%] w-[140%] -translate-x-1/2 -translate-y-1/2 scale-125 object-contain opacity-[0.22] blur-2xl saturate-150"
+          />
+        </div>
+      ) : null}
+      <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-black/85 via-black/45 to-black/25" />
+
+      <div className="relative flex h-[148px] flex-col justify-between p-4">
+        <div className="flex items-start justify-between gap-2">
+          {logo ? (
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/95 p-1.5 shadow-md ring-1 ring-black/5 transition group-hover:scale-105">
+              <Image src={logo} alt="" width={32} height={32} unoptimized className="h-7 w-7 object-contain" />
+            </div>
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-lg font-bold text-white ring-1 ring-white/30">
+              {item.brand.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <ShareRequestDialog
+            cardId={item.id}
+            label={label}
+            triggerVariant="secondary"
+            triggerClassName="!shadow-md !ring-1 !ring-black/5"
+          />
+        </div>
+        <div>
+          <p className="line-clamp-2 text-[15px] font-bold leading-snug text-white drop-shadow-sm">{title}</p>
+          <button
+            type="button"
+            onClick={() => onPickSearch(item.brand)}
+            className="mt-1.5 text-left text-xs font-medium text-white/80 transition hover:text-white"
+          >
+            · Shared by {item.sharers_count} member{item.sharers_count === 1 ? "" : "s"}
+            <span className="text-white/50"> — filter search</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const TRY_TERMS = ["Netflix", "Spotify", "American Express", "Disney", "Visa"];
+
+export function CardSearch({ communityName }: { communityName: string }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [popular, setPopular] = useState<PopularItem[]>([]);
+  const [popularLoading, setPopularLoading] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const search = useCallback(async (q: string) => {
     abortRef.current?.abort();
@@ -116,53 +204,123 @@ export function CardSearch() {
     return () => abortRef.current?.abort();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/popular");
+        if (!res.ok) throw new Error();
+        const json = await res.json();
+        if (!cancelled) {
+          const raw = json.items ?? [];
+          setPopular(
+            raw.map((row: Record<string, unknown>) => ({
+              id: String(row.id),
+              owner_id: String(row.owner_id),
+              asset_type: String(row.asset_type ?? "other"),
+              brand: String(row.brand ?? ""),
+              last_four: row.last_four != null ? String(row.last_four) : null,
+              nickname: String(row.nickname ?? ""),
+              issuer: row.issuer != null ? String(row.issuer) : null,
+              plan_tier: row.plan_tier != null ? String(row.plan_tier) : null,
+              sharers_count: Number(row.sharers_count ?? 0),
+            })),
+          );
+        }
+      } catch {
+        if (!cancelled) setPopular([]);
+      } finally {
+        if (!cancelled) setPopularLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const onPickSearch = useCallback((q: string) => {
+    setQuery(q);
+    searchInputRef.current?.focus();
+  }, []);
+
+  const showDiscover = !searched && !loading && query.trim().length < 2;
+
   return (
-    <section className="mt-10 space-y-6">
-      <div className="rounded-2xl border border-[var(--color-credora-line)] bg-white p-5 shadow-sm">
-        <label htmlFor="card-search" className="block text-sm font-medium text-[var(--color-credora-ink)]">
-          Search by card, subscription, or owner name
-        </label>
-        <div className="relative mt-2">
-          <div className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center">
-            <svg className="h-4 w-4 text-[var(--color-credora-slate)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <section className="mt-8 space-y-10">
+      <div className="mx-auto max-w-3xl animate-fade-in text-center">
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 left-5 flex items-center">
+            <svg className="h-5 w-5 text-[var(--color-credora-slate)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
           </div>
           <input
+            ref={searchInputRef}
             id="card-search"
             type="search"
             autoComplete="off"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="e.g. Netflix, Amex, HDFC, Spotify Premium…"
-            className="w-full rounded-xl border border-[var(--color-credora-line)] bg-[var(--color-credora-surface)] py-3 pl-10 pr-4 text-sm outline-none transition placeholder:text-[var(--color-credora-slate)] focus:border-[var(--color-credora-accent)] focus:bg-white focus:ring-2 focus:ring-[var(--color-credora-accent-soft)]"
+            placeholder="Search for cards, subscriptions, or owner name…"
+            className="w-full rounded-2xl border border-[var(--color-credora-line)] bg-white py-4 pl-14 pr-12 text-base shadow-sm outline-none transition placeholder:text-[var(--color-credora-slate)] focus:border-[var(--color-credora-accent)] focus:ring-4 focus:ring-[var(--color-credora-accent-soft)]"
           />
           {loading ? (
-            <div className="absolute inset-y-0 right-3.5 flex items-center">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-credora-accent)] border-t-transparent" />
+            <div className="absolute inset-y-0 right-5 flex items-center">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-credora-accent)] border-t-transparent" />
             </div>
           ) : null}
         </div>
-        <p className="mt-2 text-xs text-[var(--color-credora-slate)]">
-          Type at least 2 characters. Results rank by relevance — exact matches first.
+        <p className="mt-4 text-sm font-medium text-[var(--color-credora-slate)]">
+          Find what you need from colleagues you trust.
+        </p>
+        <p className="mt-2 text-xs text-[var(--color-credora-slate)]/90">
+          Type at least 2 characters. Results are ranked by relevance.
         </p>
       </div>
 
-      {!searched && !loading ? (
-        <div className="rounded-2xl border border-dashed border-[var(--color-credora-line)] bg-white px-6 py-16 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-credora-accent-soft)]">
-            <svg className="h-7 w-7 text-[var(--color-credora-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
+      {showDiscover ? (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-bold text-[var(--color-credora-ink)]">
+              Popular in {communityName}
+            </h2>
+            {popularLoading ? (
+              <span className="text-xs text-[var(--color-credora-slate)]">Loading…</span>
+            ) : null}
           </div>
-          <h3 className="text-base font-semibold text-[var(--color-credora-ink)]">Discover assets in your community</h3>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-[var(--color-credora-slate)]">
-            Search for credit cards, subscriptions, or anything your community members have listed. Try &ldquo;Netflix&rdquo;, &ldquo;Visa&rdquo;, or &ldquo;Spotify&rdquo;.
-          </p>
+
+          {!popularLoading && popular.length > 0 ? (
+            <div className="-mx-1 flex gap-4 overflow-x-auto pb-2 pt-1 scrollbar-thin px-1">
+              {popular.map((item, i) => (
+                <PopularAssetCard key={item.id} item={item} styleDelay={80 + i * 70} onPickSearch={onPickSearch} />
+              ))}
+            </div>
+          ) : null}
+
+          {!popularLoading && popular.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[var(--color-credora-line)] bg-white/80 px-6 py-10 text-center">
+              <p className="text-sm font-medium text-[var(--color-credora-ink)]">Your community is just getting started</p>
+              <p className="mx-auto mt-2 max-w-md text-sm text-[var(--color-credora-slate)]">
+                No pooled listings yet. Try a quick search — or ask teammates to add what they can share.
+              </p>
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                {TRY_TERMS.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => onPickSearch(t)}
+                    className="rounded-full border border-[var(--color-credora-line)] bg-[var(--color-credora-surface)] px-4 py-2 text-xs font-semibold text-[var(--color-credora-ink)] transition hover:border-[var(--color-credora-accent)] hover:bg-white"
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
-      {loading && results.length === 0 ? (
+      {loading && results.length === 0 && searched ? (
         <div className="divide-y divide-[var(--color-credora-line)] rounded-2xl border border-[var(--color-credora-line)] bg-white shadow-sm">
           <SkeletonCard />
           <SkeletonCard />
@@ -180,7 +338,7 @@ export function CardSearch() {
       ) : null}
 
       {results.length > 0 ? (
-        <div className="rounded-2xl border border-[var(--color-credora-line)] bg-white shadow-sm">
+        <div className="rounded-2xl border border-[var(--color-credora-line)] bg-white shadow-sm animate-slide-up">
           <div className="border-b border-[var(--color-credora-line)] px-6 py-4">
             <div className="flex items-baseline justify-between">
               <h2 className="text-base font-semibold text-[var(--color-credora-ink)]">Results</h2>
@@ -207,16 +365,12 @@ export function CardSearch() {
                       <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${meta.color}`}>
                         {meta.icon} {meta.label}
                       </span>
-                      <p className="font-semibold text-[var(--color-credora-ink)]">
-                        {highlightMatch(c.nickname, query)}
-                      </p>
+                      <p className="font-semibold text-[var(--color-credora-ink)]">{highlightMatch(c.nickname, query)}</p>
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${badge.cls}`}>
                         {badge.label}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm text-[var(--color-credora-slate)]">
-                      {assetSubtitle(c, query)}
-                    </p>
+                    <p className="mt-1 text-sm text-[var(--color-credora-slate)]">{assetSubtitle(c, query)}</p>
                     {c.owner_name ? (
                       <p className="mt-1 text-xs text-[var(--color-credora-slate)]">
                         Listed by <span className="font-medium text-[var(--color-credora-ink)]">{c.owner_name}</span>

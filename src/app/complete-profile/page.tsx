@@ -19,7 +19,7 @@ export default async function CompleteProfilePage() {
     .maybeSingle();
 
   if (!profileNeedsBasics(profile)) {
-    redirect("/dashboard");
+    redirect("/dashboard?tab=search");
   }
 
   const meta = user.user_metadata as Record<string, unknown> | undefined;
