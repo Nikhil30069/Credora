@@ -96,7 +96,7 @@ export default async function HomePage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-credora-line)] bg-[var(--color-credora-surface)] px-3.5 py-1.5 text-xs font-semibold text-[var(--color-credora-slate)]">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              Free · Open to your community today
+              100% Free
             </div>
 
             <h1 className="mt-5 text-[2.8rem] font-extrabold leading-[1.06] tracking-tight text-[var(--color-credora-ink)] sm:text-5xl lg:text-[3.4rem]">
@@ -106,7 +106,7 @@ export default async function HomePage() {
             </h1>
 
             <p className="mt-5 max-w-md text-lg leading-relaxed text-[var(--color-credora-slate)]">
-              Credora is a private community for your college or workplace — share subscriptions, card benefits, and digital perks with the people you already know.
+              Enjoy subscriptions, card benefits, and digital perks from the people you already know.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
