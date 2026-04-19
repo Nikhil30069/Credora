@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useLayoutEffect, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { createShareRequest } from "@/actions/share-requests";
 import { Button } from "@/components/ui/button";
 
@@ -26,7 +27,12 @@ export function ShareRequestDialog({
   triggerClassName = "",
 }: Props) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
+
+  useLayoutEffect(() => {
+    setMounted(true);
+  }, []);
   const [amount, setAmount] = useState("");
   const [purpose, setPurpose] = useState("");
   const [platform, setPlatform] = useState("");
@@ -84,21 +90,9 @@ export function ShareRequestDialog({
     });
   }
 
-  return (
-    <>
-      <Button
-        type="button"
-        variant={triggerVariant}
-        className={`!py-1.5 !px-4 !text-xs group ${triggerClassName}`}
-        onClick={() => setOpen(true)}
-      >
-        <svg className="mr-1 h-3.5 w-3.5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-        Request share
-      </Button>
-      {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+  const overlay =
+    open && mounted ? (
+      <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
           <button
             type="button"
             aria-label="Close"
@@ -229,8 +223,23 @@ export function ShareRequestDialog({
               </>
             )}
           </div>
-        </div>
-      ) : null}
+      </div>
+    ) : null;
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant={triggerVariant}
+        className={`!py-1.5 !px-4 !text-xs group ${triggerClassName}`}
+        onClick={() => setOpen(true)}
+      >
+        <svg className="mr-1 h-3.5 w-3.5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Request share
+      </Button>
+      {overlay ? createPortal(overlay, document.body) : null}
     </>
   );
 }
