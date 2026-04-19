@@ -88,6 +88,7 @@ export default async function DashboardPage({
   const ownerEmail: Record<string, string> = {};
 
   const counterpartPhoneByRequestId: Record<string, string | null> = {};
+  let unreadByRequestId: Record<string, number> = {};
 
   if (tab === "requests") {
     const { data: incoming } = await supabase
@@ -150,6 +151,23 @@ export default async function DashboardPage({
     for (const r of outgoingRows) {
       if (r.status === "accepted") {
         counterpartPhoneByRequestId[r.id] = ownerPhoneByUserId[r.owner_id] ?? null;
+      }
+    }
+
+    // Per-request unread chat counts (for Chat button badges)
+    const acceptedChatIds = [
+      ...new Set([
+        ...incomingRows.filter((r) => r.status === "accepted").map((r) => r.id),
+        ...outgoingRows.filter((r) => r.status === "accepted").map((r) => r.id),
+      ]),
+    ];
+    unreadByRequestId = {};
+    if (acceptedChatIds.length > 0) {
+      const { data: unreadRows } = await supabase.rpc("my_unread_counts_for_requests", {
+        req_ids: acceptedChatIds,
+      });
+      for (const row of (unreadRows ?? []) as Array<{ request_id: string; unread_count: number | string }>) {
+        unreadByRequestId[String(row.request_id)] = Number(row.unread_count ?? 0);
       }
     }
   }
@@ -294,6 +312,7 @@ export default async function DashboardPage({
                     counterpartEmail={requesterEmail[r.requester_id] ?? "Hidden"}
                     counterpartPhone={counterpartPhoneByRequestId[r.id] ?? null}
                     myUserId={user.id}
+                    initialUnreadCount={unreadByRequestId[r.id] ?? 0}
                   />
                 ))
               )}
@@ -332,6 +351,7 @@ export default async function DashboardPage({
                     counterpartEmail={ownerEmail[r.owner_id] ?? "Hidden"}
                     counterpartPhone={counterpartPhoneByRequestId[r.id] ?? null}
                     myUserId={user.id}
+                    initialUnreadCount={unreadByRequestId[r.id] ?? 0}
                   />
                 ))
               )}

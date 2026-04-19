@@ -1,9 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChatDrawer } from "./chat-drawer";
 import { RequestActions } from "./request-actions";
+import { createClient } from "@/lib/supabase/client";
 import { ASSET_META, type AssetType, type CardRow, type ShareRequestStatus } from "@/types/database";
+
+function unreadBadgeLabel(count: number) {
+  if (count <= 0) return "";
+  if (count > 99) return "99+";
+  return String(count);
+}
 
 type CardNested = Pick<CardRow, "id" | "asset_type" | "brand" | "last_four" | "nickname" | "issuer" | "plan_tier">;
 
@@ -96,14 +103,28 @@ export function RequestCardClient({
   counterpartEmail,
   counterpartPhone,
   myUserId,
+  initialUnreadCount = 0,
 }: {
   r: RequestRowClient;
   role: "owner" | "requester";
   counterpartEmail: string;
   counterpartPhone: string | null;
   myUserId: string;
+  /** Unread messages in this thread (from server on load; updated live). */
+  initialUnreadCount?: number;
 }) {
   const [chatOpen, setChatOpen] = useState(false);
+  const [unreadChat, setUnreadChat] = useState(initialUnreadCount);
+  const chatOpenRef = useRef(chatOpen);
+
+  useEffect(() => {
+    chatOpenRef.current = chatOpen;
+  }, [chatOpen]);
+
+  useEffect(() => {
+    setUnreadChat(initialUnreadCount);
+  }, [initialUnreadCount]);
+
   const card = r.cards;
   const sc = statusConfig(r.status);
   const isAccepted = r.status === "accepted";
@@ -118,6 +139,34 @@ export function RequestCardClient({
   const assetLabel = card
     ? `${card.nickname}${card.plan_tier ? ` · ${card.plan_tier}` : ""}${card.last_four ? ` · •••• ${card.last_four}` : ""}`
     : "Asset";
+
+  // Live unread: new messages from counterpart while chat drawer is closed
+  useEffect(() => {
+    if (!isAccepted) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`unread-badge:${r.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `request_id=eq.${r.id}`,
+        },
+        (payload) => {
+          const row = payload.new as { sender_id?: string };
+          if (row.sender_id === myUserId) return;
+          if (chatOpenRef.current) return;
+          setUnreadChat((c) => c + 1);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAccepted, r.id, myUserId]);
 
   return (
     <>
@@ -236,12 +285,18 @@ export function RequestCardClient({
               <button
                 type="button"
                 onClick={() => setChatOpen(true)}
-                className="inline-flex items-center gap-2 rounded-full bg-[var(--color-credora-ink)] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:opacity-85 active:scale-95"
+                className="relative inline-flex items-center gap-2 rounded-full bg-[var(--color-credora-ink)] px-4 py-2 pr-5 text-xs font-semibold text-white shadow-sm transition hover:opacity-85 active:scale-95"
+                aria-label={unreadChat > 0 ? `Chat, ${unreadChat} unread` : "Chat"}
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
                 </svg>
                 Chat
+                {unreadChat > 0 ? (
+                  <span className="absolute -right-1 -top-1 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white tabular-nums">
+                    {unreadBadgeLabel(unreadChat)}
+                  </span>
+                ) : null}
               </button>
             )}
           </div>
@@ -257,6 +312,7 @@ export function RequestCardClient({
           myUserId={myUserId}
           counterpartEmail={counterpartEmail}
           assetLabel={assetLabel}
+          onMarkedRead={() => setUnreadChat(0)}
         />
       )}
     </>

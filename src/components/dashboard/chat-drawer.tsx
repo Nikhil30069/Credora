@@ -41,6 +41,8 @@ type ChatDrawerProps = {
   myUserId: string;
   counterpartEmail: string;
   assetLabel: string;
+  /** Called after read state is persisted (clears unread badge on parent). */
+  onMarkedRead?: () => void;
 };
 
 export function ChatDrawer({
@@ -50,6 +52,7 @@ export function ChatDrawer({
   myUserId,
   counterpartEmail,
   assetLabel,
+  onMarkedRead,
 }: ChatDrawerProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,11 +76,12 @@ export function ChatDrawer({
 
   // ── mark read ─────────────────────────────────────────────────────────────
   const markRead = useCallback(async () => {
-    await supabase.from("message_reads").upsert(
+    const { error } = await supabase.from("message_reads").upsert(
       { request_id: requestId, user_id: myUserId, last_read_at: new Date().toISOString() },
       { onConflict: "request_id,user_id" },
     );
-  }, [supabase, requestId, myUserId]);
+    if (!error) onMarkedRead?.();
+  }, [supabase, requestId, myUserId, onMarkedRead]);
 
   // ── load history + realtime ───────────────────────────────────────────────
   useEffect(() => {
