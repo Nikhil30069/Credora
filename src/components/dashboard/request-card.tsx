@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { ChatDrawer } from "./chat-drawer";
 import { RequestActions } from "./request-actions";
-import { SharePhoneToggle } from "./share-phone-toggle";
 import { ASSET_META, type AssetType, type CardRow, type ShareRequestStatus } from "@/types/database";
 
 type CardNested = Pick<CardRow, "id" | "asset_type" | "brand" | "last_four" | "nickname" | "issuer" | "plan_tier">;
@@ -96,14 +95,12 @@ export function RequestCardClient({
   role,
   counterpartEmail,
   counterpartPhone,
-  myPhoneVisible,
   myUserId,
 }: {
   r: RequestRowClient;
   role: "owner" | "requester";
   counterpartEmail: string;
   counterpartPhone: string | null;
-  myPhoneVisible: boolean;
   myUserId: string;
 }) {
   const [chatOpen, setChatOpen] = useState(false);
@@ -111,6 +108,9 @@ export function RequestCardClient({
   const sc = statusConfig(r.status);
   const isAccepted = r.status === "accepted";
   const phoneLabel = role === "owner" ? "Requester phone" : "Owner phone";
+
+  // Owner always sees requester contact; requester sees owner contact only after acceptance
+  const showContact = role === "owner" || isAccepted;
   const assetMeta = card
     ? (ASSET_META[(card.asset_type ?? "credit_card") as AssetType] ?? ASSET_META.other)
     : null;
@@ -209,34 +209,23 @@ export function RequestCardClient({
             </p>
           )}
 
-          <div className="flex items-center gap-2 text-xs text-[var(--color-credora-slate)]">
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-credora-accent-soft)] text-[10px] font-bold text-[var(--color-credora-accent)]">
-              {counterpartEmail.charAt(0).toUpperCase()}
-            </span>
-            {isAccepted ? (
-              <a href={`mailto:${counterpartEmail}`} className="font-medium text-[var(--color-credora-ink)] hover:underline">
-                {counterpartEmail}
-              </a>
-            ) : (
-              <span>
-                {role === "owner" ? "Requester" : "Card owner"} · email visible after acceptance
+          {showContact ? (
+            <>
+              <EmailReveal
+                email={counterpartEmail}
+                label={role === "owner" ? "Requester contact" : "Owner contact"}
+              />
+              {counterpartPhone?.trim() && (
+                <PhoneReveal phone={counterpartPhone.trim()} label={phoneLabel} />
+              )}
+            </>
+          ) : (
+            <div className="flex items-center gap-2 text-xs text-[var(--color-credora-slate)]">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-credora-accent-soft)] text-[10px] font-bold text-[var(--color-credora-accent)]">
+                {counterpartEmail.charAt(0).toUpperCase()}
               </span>
-            )}
-          </div>
-
-          {isAccepted && (
-            <EmailReveal
-              email={counterpartEmail}
-              label={role === "owner" ? "Requester contact" : "Card owner contact"}
-            />
-          )}
-
-          {isAccepted && counterpartPhone?.trim() && (
-            <PhoneReveal phone={counterpartPhone.trim()} label={phoneLabel} />
-          )}
-
-          {isAccepted && (
-            <SharePhoneToggle requestId={r.id} visible={myPhoneVisible} />
+              <span>Owner contact visible after acceptance</span>
+            </div>
           )}
 
           {/* action row */}

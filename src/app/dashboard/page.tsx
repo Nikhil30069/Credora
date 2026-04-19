@@ -87,7 +87,7 @@ export default async function DashboardPage({
   const requesterEmail: Record<string, string> = {};
   const ownerEmail: Record<string, string> = {};
 
-  let counterpartPhoneByRequestId: Record<string, string | null> = {};
+  const counterpartPhoneByRequestId: Record<string, string | null> = {};
 
   if (tab === "requests") {
     const { data: incoming } = await supabase
@@ -109,44 +109,47 @@ export default async function DashboardPage({
     incomingRows = (incoming ?? []) as unknown as RequestRow[];
     outgoingRows = (outgoing ?? []) as unknown as RequestRow[];
 
-    const acceptedRequestIds = [
-      ...incomingRows.filter((r) => r.status === "accepted").map((r) => r.id),
-      ...outgoingRows.filter((r) => r.status === "accepted").map((r) => r.id),
-    ];
-    const phoneEntries = await Promise.all(
-      acceptedRequestIds.map(async (rid) => {
-        const { data } = await supabase.rpc("counterparty_phone_for_share_request", {
-          p_request_id: rid,
-        });
-        return [rid, (typeof data === "string" ? data : null) ?? null] as const;
-      }),
-    );
-    counterpartPhoneByRequestId = Object.fromEntries(phoneEntries);
-
-    const acceptedInIds = incomingRows.filter((r) => r.status === "accepted").map((r) => r.requester_id);
     const allRequesterIds = [...new Set(incomingRows.map((r) => r.requester_id))];
-
-    const acceptedOutIds = outgoingRows.filter((r) => r.status === "accepted").map((r) => r.owner_id);
     const allOwnerIds = [...new Set(outgoingRows.map((r) => r.owner_id))];
+    const acceptedOutIds = outgoingRows.filter((r) => r.status === "accepted").map((r) => r.owner_id);
 
+    // Owner sees requester email + phone for ALL incoming requests (no masking, no toggle)
+    const requesterPhoneByUserId: Record<string, string | null> = {};
     if (allRequesterIds.length > 0) {
-      const { data: profiles } = await supabase.from("profiles").select("id, email").in("id", allRequesterIds);
-      for (const p of profiles ?? []) {
-        if (acceptedInIds.includes(p.id)) {
-          requesterEmail[p.id] = p.email;
-        } else {
-          requesterEmail[p.id] = p.email.replace(/^(.).+(@.+)$/, "$1•••$2");
-        }
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, email, phone")
+        .in("id", allRequesterIds);
+      for (const p of (profiles ?? []) as Array<{ id: string; email: string; phone?: string | null }>) {
+        requesterEmail[p.id] = p.email;
+        requesterPhoneByUserId[p.id] = p.phone ?? null;
       }
     }
+
+    // Requester sees owner email + phone only after acceptance
+    const ownerPhoneByUserId: Record<string, string | null> = {};
     if (allOwnerIds.length > 0) {
-      const { data: profiles } = await supabase.from("profiles").select("id, email").in("id", allOwnerIds);
-      for (const p of profiles ?? []) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, email, phone")
+        .in("id", allOwnerIds);
+      for (const p of (profiles ?? []) as Array<{ id: string; email: string; phone?: string | null }>) {
         if (acceptedOutIds.includes(p.id)) {
           ownerEmail[p.id] = p.email;
+          ownerPhoneByUserId[p.id] = p.phone ?? null;
         } else {
           ownerEmail[p.id] = p.email.replace(/^(.).+(@.+)$/, "$1•••$2");
         }
+      }
+    }
+
+    // Build per-request counterpart phone maps
+    for (const r of incomingRows) {
+      counterpartPhoneByRequestId[r.id] = requesterPhoneByUserId[r.requester_id] ?? null;
+    }
+    for (const r of outgoingRows) {
+      if (r.status === "accepted") {
+        counterpartPhoneByRequestId[r.id] = ownerPhoneByUserId[r.owner_id] ?? null;
       }
     }
   }
@@ -290,7 +293,6 @@ export default async function DashboardPage({
                     role="owner"
                     counterpartEmail={requesterEmail[r.requester_id] ?? "Hidden"}
                     counterpartPhone={counterpartPhoneByRequestId[r.id] ?? null}
-                    myPhoneVisible={r.owner_phone_visible ?? false}
                     myUserId={user.id}
                   />
                 ))
@@ -329,7 +331,6 @@ export default async function DashboardPage({
                     role="requester"
                     counterpartEmail={ownerEmail[r.owner_id] ?? "Hidden"}
                     counterpartPhone={counterpartPhoneByRequestId[r.id] ?? null}
-                    myPhoneVisible={r.requester_phone_visible ?? false}
                     myUserId={user.id}
                   />
                 ))
