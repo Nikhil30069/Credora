@@ -100,8 +100,8 @@ export default async function HomePage() {
             </div>
 
             <h1 className="mt-5 text-[2.8rem] font-extrabold leading-[1.06] tracking-tight text-[var(--color-credora-ink)] sm:text-5xl lg:text-[3.4rem]">
-              Borrow a Netflix.<br />
-              Lend your Amex.<br />
+              Borrow Netflix, Credit Cards<br />
+              & Much More<br />
               <span className="text-[var(--color-credora-accent)]">With people you trust.</span>
             </h1>
 
