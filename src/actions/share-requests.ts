@@ -6,13 +6,34 @@ import type { ShareRequestStatus } from "@/types/database";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
-export type ShareRequestPayload = {
+/** Fields for a credit-card request */
+type CardPayload = {
+  kind: "card";
   cardId: string;
   amount: number;
-  purpose: string;
   platform: string;
+  purpose: string;
   message: string | null;
 };
+
+/** Fields for a streaming / subscription request */
+type StreamingPayload = {
+  kind: "streaming";
+  cardId: string;
+  duration: string;
+  useFor: string | null;  // "What will you use it for?" (optional)
+  message: string | null;
+};
+
+/** Fallback for "other" asset types */
+type OtherPayload = {
+  kind: "other";
+  cardId: string;
+  purpose: string;
+  message: string | null;
+};
+
+export type ShareRequestPayload = CardPayload | StreamingPayload | OtherPayload;
 
 export async function createShareRequest(payload: ShareRequestPayload): Promise<ActionResult> {
   const supabase = await createClient();
@@ -21,9 +42,16 @@ export async function createShareRequest(payload: ShareRequestPayload): Promise<
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Sign in required." };
 
-  if (!payload.amount || payload.amount <= 0) return { ok: false, error: "Enter a valid amount." };
-  if (!payload.purpose.trim()) return { ok: false, error: "Purpose is required." };
-  if (!payload.platform.trim()) return { ok: false, error: "Platform is required." };
+  // Validate per kind
+  if (payload.kind === "card") {
+    if (!payload.amount || payload.amount <= 0) return { ok: false, error: "Enter a valid amount." };
+    if (!payload.platform.trim()) return { ok: false, error: "Platform is required." };
+    if (!payload.purpose.trim()) return { ok: false, error: "Purpose is required." };
+  } else if (payload.kind === "streaming") {
+    if (!payload.duration.trim()) return { ok: false, error: "Duration is required." };
+  } else {
+    if (!payload.purpose.trim()) return { ok: false, error: "Purpose is required." };
+  }
 
   const { data: card, error: cardErr } = await supabase
     .from("cards")
@@ -34,19 +62,31 @@ export async function createShareRequest(payload: ShareRequestPayload): Promise<
   if (cardErr || !card) return { ok: false, error: "Asset not found." };
   if (card.owner_id === user.id) return { ok: false, error: "You cannot request your own asset." };
 
-  const { error } = await supabase.from("share_requests").insert({
+  // Build the DB row — only populate columns relevant to the kind
+  const row: Record<string, unknown> = {
     card_id: payload.cardId,
     requester_id: user.id,
     owner_id: card.owner_id,
-    amount: payload.amount,
-    purpose: payload.purpose.trim(),
-    platform: payload.platform.trim(),
     message: payload.message?.trim() || null,
-  });
+  };
+
+  if (payload.kind === "card") {
+    row.amount = payload.amount;
+    row.platform = payload.platform.trim();
+    row.purpose = payload.purpose.trim();
+  } else if (payload.kind === "streaming") {
+    row.duration = payload.duration.trim();
+    row.purpose = payload.useFor?.trim() || null;
+    // platform is left null; amount is left null
+  } else {
+    row.purpose = payload.purpose.trim();
+  }
+
+  const { error } = await supabase.from("share_requests").insert(row);
 
   if (error) {
     if (error.code === "23505") {
-      return { ok: false, error: "You already have a pending request for this card." };
+      return { ok: false, error: "You already have a pending request for this asset." };
     }
     return { ok: false, error: error.message };
   }

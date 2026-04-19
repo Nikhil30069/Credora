@@ -15,6 +15,7 @@ export type RequestRowClient = {
   amount: number | null;
   purpose: string | null;
   platform: string | null;
+  duration: string | null;
   created_at: string;
   requester_id: string;
   owner_id: string;
@@ -22,6 +23,8 @@ export type RequestRowClient = {
   requester_phone_visible: boolean;
   cards: CardNested | null;
 };
+
+const STREAMING_TYPES = new Set(["netflix", "prime", "spotify", "jiohotstar"]);
 
 function formatAmount(n: number | null) {
   if (!n) return null;
@@ -169,13 +172,36 @@ export function RequestCardClient({
             </p>
           )}
 
-          {(r.amount || r.purpose || r.platform) && (
-            <div className="flex flex-wrap gap-2">
-              {r.amount && <DetailPill icon="₹">{formatAmount(r.amount)}</DetailPill>}
-              {r.platform && <DetailPill icon="🏪">{r.platform}</DetailPill>}
-              {r.purpose && <DetailPill icon="📋">{r.purpose}</DetailPill>}
-            </div>
-          )}
+          {(() => {
+            const assetType = card?.asset_type ?? "other";
+            const isStreaming = STREAMING_TYPES.has(String(assetType).toLowerCase());
+            const isCard = assetType === "credit_card";
+            const hasPills = isStreaming
+              ? r.duration || r.purpose
+              : isCard
+              ? r.amount || r.platform || r.purpose
+              : r.purpose;
+            return hasPills ? (
+              <div className="flex flex-wrap gap-2">
+                {isStreaming ? (
+                  <>
+                    {r.duration && <DetailPill icon="⏱">{r.duration}</DetailPill>}
+                    {r.purpose && <DetailPill icon="🎬">{r.purpose}</DetailPill>}
+                  </>
+                ) : isCard ? (
+                  <>
+                    {r.amount && <DetailPill icon="₹">{formatAmount(r.amount)}</DetailPill>}
+                    {r.platform && <DetailPill icon="🏪">{r.platform}</DetailPill>}
+                    {r.purpose && <DetailPill icon="📋">{r.purpose}</DetailPill>}
+                  </>
+                ) : (
+                  <>
+                    {r.purpose && <DetailPill icon="📋">{r.purpose}</DetailPill>}
+                  </>
+                )}
+              </div>
+            ) : null;
+          })()}
 
           {r.message && (
             <p className="rounded-lg bg-[var(--color-credora-surface)] px-3 py-2 text-sm italic text-[var(--color-credora-slate)]">

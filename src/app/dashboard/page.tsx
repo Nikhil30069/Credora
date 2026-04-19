@@ -19,6 +19,7 @@ type RequestRow = {
   amount: number | null;
   purpose: string | null;
   platform: string | null;
+  duration: string | null;
   created_at: string;
   requester_id: string;
   owner_id: string;
@@ -92,7 +93,7 @@ export default async function DashboardPage({
     const { data: incoming } = await supabase
       .from("share_requests")
       .select(
-        "id, status, message, amount, purpose, platform, created_at, requester_id, owner_id, owner_phone_visible, requester_phone_visible, cards ( id, asset_type, brand, last_four, nickname, issuer, plan_tier )",
+        "id, status, message, amount, purpose, platform, duration, created_at, requester_id, owner_id, owner_phone_visible, requester_phone_visible, cards ( id, asset_type, brand, last_four, nickname, issuer, plan_tier )",
       )
       .eq("owner_id", user.id)
       .order("created_at", { ascending: false });
@@ -100,7 +101,7 @@ export default async function DashboardPage({
     const { data: outgoing } = await supabase
       .from("share_requests")
       .select(
-        "id, status, message, amount, purpose, platform, created_at, requester_id, owner_id, owner_phone_visible, requester_phone_visible, cards ( id, asset_type, brand, last_four, nickname, issuer, plan_tier )",
+        "id, status, message, amount, purpose, platform, duration, created_at, requester_id, owner_id, owner_phone_visible, requester_phone_visible, cards ( id, asset_type, brand, last_four, nickname, issuer, plan_tier )",
       )
       .eq("requester_id", user.id)
       .order("created_at", { ascending: false });

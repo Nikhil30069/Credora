@@ -124,6 +124,7 @@ function PopularCard({
             <ShareRequestDialog
               cardId={item.id}
               label={label}
+              assetType={item.asset_type}
               triggerVariant="secondary"
               triggerClassName="!py-1 !px-3 !text-xs !bg-white/90 !text-[var(--color-credora-ink)] hover:!bg-white"
             />
@@ -336,7 +337,7 @@ export function CardSearch({ communityName }: { communityName: string }) {
                     )}
                   </div>
                   <div className="shrink-0">
-                    <ShareRequestDialog cardId={c.id} label={label} />
+                    <ShareRequestDialog cardId={c.id} label={label} assetType={c.asset_type} />
                   </div>
                 </li>
               );
