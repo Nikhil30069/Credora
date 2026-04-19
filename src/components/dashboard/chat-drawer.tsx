@@ -58,6 +58,8 @@ export function ChatDrawer({
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  /** FIFO of optimistic `temp-*` ids still waiting for the server row (Realtime or insert response). */
+  const pendingTempIdsRef = useRef<string[]>([]);
   const supabase = createClient();
 
   // ── scroll to bottom ──────────────────────────────────────────────────────
@@ -80,6 +82,7 @@ export function ChatDrawer({
   // ── load history + realtime ───────────────────────────────────────────────
   useEffect(() => {
     if (!open) return;
+    pendingTempIdsRef.current = [];
 
     let mounted = true;
 
@@ -111,8 +114,23 @@ export function ChatDrawer({
         (payload) => {
           const msg = payload.new as Message;
           setMessages((prev) => {
-            // avoid duplicates (own optimistic inserts get confirmed here)
             if (prev.some((m) => m.id === msg.id)) return prev;
+
+            // Own message: merge into the matching optimistic row (temp id ≠ server id, so dedupe by id alone fails).
+            if (msg.sender_id === myUserId) {
+              const pending = pendingTempIdsRef.current;
+              for (let p = 0; p < pending.length; p++) {
+                const tempId = pending[p];
+                const i = prev.findIndex((m) => m.id === tempId);
+                if (i !== -1) {
+                  const next = [...prev];
+                  next[i] = msg;
+                  pending.splice(p, 1);
+                  return next;
+                }
+              }
+            }
+
             return [...prev, msg];
           });
           // auto-scroll on incoming messages
@@ -160,21 +178,42 @@ export function ChatDrawer({
       content: text,
       created_at: new Date().toISOString(),
     };
+    pendingTempIdsRef.current.push(tempId);
     setMessages((prev) => [...prev, optimistic]);
     setInput("");
     setTimeout(() => scrollToBottom(true), 50);
 
-    const { error: err } = await supabase.from("messages").insert({
-      request_id: requestId,
-      sender_id: myUserId,
-      content: text,
-    });
+    const { data: inserted, error: err } = await supabase
+      .from("messages")
+      .insert({
+        request_id: requestId,
+        sender_id: myUserId,
+        content: text,
+      })
+      .select("id, request_id, sender_id, content, created_at")
+      .single();
 
-    if (err) {
-      // rollback optimistic
+    const dropPending = () => {
+      const q = pendingTempIdsRef.current;
+      const i = q.indexOf(tempId);
+      if (i !== -1) q.splice(i, 1);
+    };
+
+    if (err || !inserted) {
+      dropPending();
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setInput(text);
       setError("Failed to send. Try again.");
+    } else {
+      dropPending();
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === inserted.id)) return prev;
+        const i = prev.findIndex((m) => m.id === tempId);
+        if (i === -1) return [...prev, inserted as Message];
+        const next = [...prev];
+        next[i] = inserted as Message;
+        return next;
+      });
     }
     setSending(false);
   }, [input, sending, requestId, myUserId, supabase, scrollToBottom]);
