@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addAsset } from "@/actions/cards";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/ui/select-field";
 import { ASSET_META, type AssetType } from "@/types/database";
@@ -134,7 +135,14 @@ export function AddAssetForm() {
       ) : null}
 
       <Button type="submit" disabled={pending}>
-        {pending ? "Saving…" : `List ${ASSET_META[assetType].label}`}
+        {pending ? (
+          <>
+            <Spinner className="size-3.5 border-white border-t-transparent" />
+            Saving…
+          </>
+        ) : (
+          `List ${ASSET_META[assetType].label}`
+        )}
       </Button>
     </form>
   );

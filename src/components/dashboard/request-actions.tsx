@@ -1,32 +1,44 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { updateShareRequestStatus } from "@/actions/share-requests";
+import { Spinner } from "@/components/ui/spinner";
 import type { ShareRequestStatus } from "@/types/database";
 
 type Props = {
   requestId: string;
   role: "owner" | "requester";
   status: ShareRequestStatus;
+  onBusyChange?: (busy: boolean) => void;
 };
 
-export function RequestActions({ requestId, role, status }: Props) {
+export function RequestActions({ requestId, role, status, onBusyChange }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [actingOn, setActingOn] = useState<ShareRequestStatus | null>(null);
+
+  useEffect(() => {
+    onBusyChange?.(pending);
+  }, [pending, onBusyChange]);
 
   if (status !== "pending") return null;
 
   function run(next: ShareRequestStatus) {
     setError(null);
+    setActingOn(next);
     start(async () => {
-      const r = await updateShareRequestStatus(requestId, next);
-      if (!r.ok) {
-        setError(r.error);
-        return;
+      try {
+        const r = await updateShareRequestStatus(requestId, next);
+        if (!r.ok) {
+          setError(r.error);
+          return;
+        }
+        await router.refresh();
+      } finally {
+        setActingOn(null);
       }
-      router.refresh();
     });
   }
 
@@ -40,10 +52,14 @@ export function RequestActions({ requestId, role, status }: Props) {
             onClick={() => run("accepted")}
             className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.97] disabled:opacity-50"
           >
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            Accept
+            {pending && actingOn === "accepted" ? (
+              <Spinner className="size-3.5 border-white border-t-transparent" />
+            ) : (
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            )}
+            {pending && actingOn === "accepted" ? "Accepting…" : "Accept"}
           </button>
           <button
             type="button"
@@ -51,10 +67,14 @@ export function RequestActions({ requestId, role, status }: Props) {
             onClick={() => run("rejected")}
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 active:scale-[0.97] disabled:opacity-50"
           >
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            Decline
+            {pending && actingOn === "rejected" ? (
+              <Spinner className="size-3.5 border-zinc-600 border-t-transparent" />
+            ) : (
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+            {pending && actingOn === "rejected" ? "Declining…" : "Decline"}
           </button>
         </div>
         {error ? (
@@ -72,7 +92,10 @@ export function RequestActions({ requestId, role, status }: Props) {
         onClick={() => run("cancelled")}
         className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-800 active:scale-[0.97] disabled:opacity-50"
       >
-        Cancel request
+        {pending && actingOn === "cancelled" ? (
+          <Spinner className="size-3.5 border-zinc-500 border-t-transparent" />
+        ) : null}
+        {pending && actingOn === "cancelled" ? "Cancelling…" : "Cancel request"}
       </button>
       {error ? (
         <p className="rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-700">{error}</p>

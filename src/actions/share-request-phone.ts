@@ -18,6 +18,6 @@ export async function setShareRequestPhoneVisible(requestId: string, visible: bo
   });
 
   if (error) return { ok: false, error: error.message };
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "page");
   return { ok: true };
 }

@@ -65,7 +65,7 @@ export async function addAsset(_prev: ActionResult | null, formData: FormData): 
     if (error) return { ok: false, error: error.message };
   }
 
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "page");
   return { ok: true };
 }
 
@@ -78,6 +78,6 @@ export async function removeCard(cardId: string): Promise<ActionResult> {
 
   const { error } = await supabase.from("cards").delete().eq("id", cardId).eq("owner_id", user.id);
   if (error) return { ok: false, error: error.message };
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "page");
   return { ok: true };
 }

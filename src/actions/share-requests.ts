@@ -90,7 +90,7 @@ export async function createShareRequest(payload: ShareRequestPayload): Promise<
     }
     return { ok: false, error: error.message };
   }
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "page");
   return { ok: true };
 }
 
@@ -127,6 +127,6 @@ export async function updateShareRequestStatus(
 
   const { error } = await supabase.from("share_requests").update({ status: nextStatus }).eq("id", requestId);
   if (error) return { ok: false, error: error.message };
-  revalidatePath("/dashboard");
+  revalidatePath("/dashboard", "page");
   return { ok: true };
 }

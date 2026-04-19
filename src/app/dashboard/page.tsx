@@ -28,6 +28,43 @@ type RequestRow = {
   cards: CardNested | null;
 };
 
+type MyCard = Pick<CardRow, "id" | "asset_type" | "brand" | "last_four" | "nickname" | "issuer" | "plan_tier" | "created_at">;
+
+type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
+
+async function loadDashboardTabData(
+  supabase: SupabaseServer,
+  userId: string,
+  tab: Tab,
+): Promise<
+  | { kind: "uploaded"; myCards: MyCard[] }
+  | { kind: "requests"; incoming: RequestRow[]; outgoing: RequestRow[] }
+  | { kind: "search" }
+> {
+  if (tab === "uploaded") {
+    const { data } = await supabase
+      .from("cards")
+      .select("id, asset_type, brand, last_four, nickname, issuer, plan_tier, created_at")
+      .eq("owner_id", userId)
+      .order("created_at", { ascending: false });
+    return { kind: "uploaded", myCards: (data ?? []) as unknown as MyCard[] };
+  }
+  if (tab === "requests") {
+    const select =
+      "id, status, message, amount, purpose, platform, duration, created_at, requester_id, owner_id, owner_phone_visible, requester_phone_visible, cards ( id, asset_type, brand, last_four, nickname, issuer, plan_tier )";
+    const [incoming, outgoing] = await Promise.all([
+      supabase.from("share_requests").select(select).eq("owner_id", userId).order("created_at", { ascending: false }),
+      supabase.from("share_requests").select(select).eq("requester_id", userId).order("created_at", { ascending: false }),
+    ]);
+    return {
+      kind: "requests",
+      incoming: (incoming.data ?? []) as unknown as RequestRow[],
+      outgoing: (outgoing.data ?? []) as unknown as RequestRow[],
+    };
+  }
+  return { kind: "search" };
+}
+
 function tabLinkClass(active: boolean) {
   return [
     "inline-flex items-center gap-2 border-b-2 pb-3 text-sm font-semibold transition -mb-px",
@@ -36,7 +73,6 @@ function tabLinkClass(active: boolean) {
       : "border-transparent text-[var(--color-credora-slate)] hover:border-[var(--color-credora-line)] hover:text-[var(--color-credora-ink)]",
   ].join(" ");
 }
-
 
 export default async function DashboardPage({
   searchParams,
@@ -53,122 +89,93 @@ export default async function DashboardPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?reason=session");
 
-  const { data: myProfile } = await supabase
-    .from("profiles")
-    .select("domain")
-    .eq("id", user.id)
-    .maybeSingle();
-  const userDomain = myProfile?.domain ?? "";
-
-  const { count: pendingIncoming } = await supabase
-    .from("share_requests")
-    .select("*", { count: "exact", head: true })
-    .eq("owner_id", user.id)
-    .eq("status", "pending");
+  const [{ data: myProfile }, { count: pendingIncoming }, { data: unreadData }, tabPayload] = await Promise.all([
+    supabase.from("profiles").select("domain").eq("id", user.id).maybeSingle(),
+    supabase
+      .from("share_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("owner_id", user.id)
+      .eq("status", "pending"),
+    supabase.rpc("my_unread_message_count"),
+    loadDashboardTabData(supabase, user.id, tab),
+  ]);
 
   const pendingCount = pendingIncoming ?? 0;
-
-  const { data: unreadData } = await supabase.rpc("my_unread_message_count");
   const unreadMessages = Number(unreadData ?? 0);
+  const userDomain = myProfile?.domain ?? "";
 
-  type MyCard = Pick<CardRow, "id" | "asset_type" | "brand" | "last_four" | "nickname" | "issuer" | "plan_tier" | "created_at">;
   let myCards: MyCard[] = [];
-  if (tab === "uploaded") {
-    const { data } = await supabase
-      .from("cards")
-      .select("id, asset_type, brand, last_four, nickname, issuer, plan_tier, created_at")
-      .eq("owner_id", user.id)
-      .order("created_at", { ascending: false });
-    myCards = (data ?? []) as unknown as MyCard[];
-  }
-
   let incomingRows: RequestRow[] = [];
   let outgoingRows: RequestRow[] = [];
   const requesterEmail: Record<string, string> = {};
   const ownerEmail: Record<string, string> = {};
-
   const counterpartPhoneByRequestId: Record<string, string | null> = {};
   let unreadByRequestId: Record<string, number> = {};
 
-  if (tab === "requests") {
-    const { data: incoming } = await supabase
-      .from("share_requests")
-      .select(
-        "id, status, message, amount, purpose, platform, duration, created_at, requester_id, owner_id, owner_phone_visible, requester_phone_visible, cards ( id, asset_type, brand, last_four, nickname, issuer, plan_tier )",
-      )
-      .eq("owner_id", user.id)
-      .order("created_at", { ascending: false });
+  if (tabPayload.kind === "uploaded") {
+    myCards = tabPayload.myCards;
+  }
 
-    const { data: outgoing } = await supabase
-      .from("share_requests")
-      .select(
-        "id, status, message, amount, purpose, platform, duration, created_at, requester_id, owner_id, owner_phone_visible, requester_phone_visible, cards ( id, asset_type, brand, last_four, nickname, issuer, plan_tier )",
-      )
-      .eq("requester_id", user.id)
-      .order("created_at", { ascending: false });
+  if (tabPayload.kind === "requests") {
+    incomingRows = tabPayload.incoming;
+    outgoingRows = tabPayload.outgoing;
 
-    incomingRows = (incoming ?? []) as unknown as RequestRow[];
-    outgoingRows = (outgoing ?? []) as unknown as RequestRow[];
+    const profileIds = [
+      ...new Set([
+        ...incomingRows.map((r) => r.requester_id),
+        ...outgoingRows.map((r) => r.owner_id),
+      ]),
+    ];
 
-    const allRequesterIds = [...new Set(incomingRows.map((r) => r.requester_id))];
-    const allOwnerIds = [...new Set(outgoingRows.map((r) => r.owner_id))];
-    const acceptedOutIds = outgoingRows.filter((r) => r.status === "accepted").map((r) => r.owner_id);
-
-    // Owner sees requester email + phone for ALL incoming requests (no masking, no toggle)
-    const requesterPhoneByUserId: Record<string, string | null> = {};
-    if (allRequesterIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, email, phone")
-        .in("id", allRequesterIds);
-      for (const p of (profiles ?? []) as Array<{ id: string; email: string; phone?: string | null }>) {
-        requesterEmail[p.id] = p.email;
-        requesterPhoneByUserId[p.id] = p.phone ?? null;
-      }
-    }
-
-    // Requester sees owner email + phone only after acceptance
-    const ownerPhoneByUserId: Record<string, string | null> = {};
-    if (allOwnerIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, email, phone")
-        .in("id", allOwnerIds);
-      for (const p of (profiles ?? []) as Array<{ id: string; email: string; phone?: string | null }>) {
-        if (acceptedOutIds.includes(p.id)) {
-          ownerEmail[p.id] = p.email;
-          ownerPhoneByUserId[p.id] = p.phone ?? null;
-        } else {
-          ownerEmail[p.id] = p.email.replace(/^(.).+(@.+)$/, "$1•••$2");
-        }
-      }
-    }
-
-    // Build per-request counterpart phone maps
-    for (const r of incomingRows) {
-      counterpartPhoneByRequestId[r.id] = requesterPhoneByUserId[r.requester_id] ?? null;
-    }
-    for (const r of outgoingRows) {
-      if (r.status === "accepted") {
-        counterpartPhoneByRequestId[r.id] = ownerPhoneByUserId[r.owner_id] ?? null;
-      }
-    }
-
-    // Per-request unread chat counts (for Chat button badges)
     const acceptedChatIds = [
       ...new Set([
         ...incomingRows.filter((r) => r.status === "accepted").map((r) => r.id),
         ...outgoingRows.filter((r) => r.status === "accepted").map((r) => r.id),
       ]),
     ];
-    unreadByRequestId = {};
-    if (acceptedChatIds.length > 0) {
-      const { data: unreadRows } = await supabase.rpc("my_unread_counts_for_requests", {
-        req_ids: acceptedChatIds,
-      });
-      for (const row of (unreadRows ?? []) as Array<{ request_id: string; unread_count: number | string }>) {
-        unreadByRequestId[String(row.request_id)] = Number(row.unread_count ?? 0);
+
+    type ProfileRow = { id: string; email: string; phone: string | null };
+    const [profilesRes, unreadRes] = await Promise.all([
+      profileIds.length > 0
+        ? supabase.from("profiles").select("id, email, phone").in("id", profileIds)
+        : Promise.resolve({ data: [] as ProfileRow[] }),
+      acceptedChatIds.length > 0
+        ? supabase.rpc("my_unread_counts_for_requests", { req_ids: acceptedChatIds })
+        : Promise.resolve({ data: [] as Array<{ request_id: string; unread_count: number | string }> }),
+    ]);
+
+    const byProfileId = new Map<string, ProfileRow>();
+    for (const p of (profilesRes.data ?? []) as ProfileRow[]) {
+      byProfileId.set(p.id, p);
+    }
+
+    for (const r of incomingRows) {
+      const p = byProfileId.get(r.requester_id);
+      if (p) {
+        requesterEmail[r.requester_id] = p.email;
+        counterpartPhoneByRequestId[r.id] = p.phone ?? null;
       }
+    }
+
+    const outgoingOwnerIds = [...new Set(outgoingRows.map((r) => r.owner_id))];
+    for (const ownerId of outgoingOwnerIds) {
+      const p = byProfileId.get(ownerId);
+      if (!p) continue;
+      const hasAcceptedOutgoing = outgoingRows.some((r) => r.owner_id === ownerId && r.status === "accepted");
+      ownerEmail[ownerId] = hasAcceptedOutgoing
+        ? p.email
+        : p.email.replace(/^(.).+(@.+)$/, "$1•••$2");
+    }
+
+    for (const r of outgoingRows) {
+      if (r.status !== "accepted") continue;
+      const p = byProfileId.get(r.owner_id);
+      counterpartPhoneByRequestId[r.id] = p?.phone ?? null;
+    }
+
+    unreadByRequestId = {};
+    for (const row of (unreadRes.data ?? []) as Array<{ request_id: string; unread_count: number | string }>) {
+      unreadByRequestId[String(row.request_id)] = Number(row.unread_count ?? 0);
     }
   }
 
@@ -178,19 +185,19 @@ export default async function DashboardPage({
     <main className="mx-auto max-w-6xl px-6 py-8">
       <nav className="border-b border-[var(--color-credora-line)]">
         <div className="flex flex-wrap justify-center gap-x-10 gap-y-2 sm:gap-x-14">
-          <Link href="/dashboard?tab=search" className={tabLinkClass(tab === "search")}>
+          <Link href="/dashboard?tab=search" prefetch className={tabLinkClass(tab === "search")}>
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
             Search
           </Link>
-          <Link href="/dashboard?tab=uploaded" className={tabLinkClass(tab === "uploaded")}>
+          <Link href="/dashboard?tab=uploaded" prefetch className={tabLinkClass(tab === "uploaded")}>
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
             </svg>
             My assets
           </Link>
-          <Link href="/dashboard?tab=requests" className={tabLinkClass(tab === "requests")}>
+          <Link href="/dashboard?tab=requests" prefetch className={tabLinkClass(tab === "requests")}>
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
             </svg>

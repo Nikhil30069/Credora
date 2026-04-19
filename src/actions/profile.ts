@@ -35,7 +35,7 @@ export async function saveProfileBasics(fullName: string, phone: string): Promis
     .eq("id", user.id);
 
   if (error) return { ok: false, error: error.message };
-  revalidatePath("/dashboard");
-  revalidatePath("/complete-profile");
+  revalidatePath("/dashboard", "page");
+  revalidatePath("/complete-profile", "page");
   return { ok: true };
 }

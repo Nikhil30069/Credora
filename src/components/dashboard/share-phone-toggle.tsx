@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { setShareRequestPhoneVisible } from "@/actions/share-request-phone";
+import { Spinner } from "@/components/ui/spinner";
 
 type Props = {
   requestId: string;
@@ -52,7 +53,10 @@ export function SharePhoneToggle({ requestId, visible }: Props) {
               }`}
             />
           </button>
-          <span className="text-xs font-semibold text-[var(--color-credora-ink)]">{visible ? "On" : "Off"}</span>
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-credora-ink)]">
+            {pending ? <Spinner className="size-3.5 border-zinc-400 border-t-transparent" /> : null}
+            {visible ? "On" : "Off"}
+          </span>
         </div>
       </div>
       {error ? <p className="mt-2 text-xs text-red-700">{error}</p> : null}

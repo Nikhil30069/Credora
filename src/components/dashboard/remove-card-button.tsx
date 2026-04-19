@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { removeCard } from "@/actions/cards";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 export function RemoveCardButton({ cardId }: { cardId: string }) {
   const router = useRouter();
@@ -21,7 +22,14 @@ export function RemoveCardButton({ cardId }: { cardId: string }) {
         })
       }
     >
-      {pending ? "Removing…" : "Remove"}
+      {pending ? (
+        <>
+          <Spinner className="size-3.5 border-white border-t-transparent" />
+          Removing…
+        </>
+      ) : (
+        "Remove"
+      )}
     </Button>
   );
 }

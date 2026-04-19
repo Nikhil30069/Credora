@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChatDrawer } from "./chat-drawer";
 import { RequestActions } from "./request-actions";
+import { Spinner } from "@/components/ui/spinner";
 import { createClient } from "@/lib/supabase/client";
 import { ASSET_META, type AssetType, type CardRow, type ShareRequestStatus } from "@/types/database";
 
@@ -113,6 +114,7 @@ export function RequestCardClient({
   /** Unread messages in this thread (from server on load; updated live). */
   initialUnreadCount?: number;
 }) {
+  const [requestActionBusy, setRequestActionBusy] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [unreadChat, setUnreadChat] = useState(initialUnreadCount);
   const chatOpenRef = useRef(chatOpen);
@@ -171,6 +173,15 @@ export function RequestCardClient({
   return (
     <>
       <li className="group relative overflow-hidden rounded-xl border border-[var(--color-credora-line)] bg-white transition hover:border-[var(--color-credora-accent)]/30 hover:shadow-md">
+        {requestActionBusy ? (
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/60 backdrop-blur-[1px]"
+            aria-busy
+            aria-label="Updating request"
+          >
+            <Spinner className="size-8 border-[2.5px] text-[var(--color-credora-accent)]" />
+          </div>
+        ) : null}
         {isAccepted && (
           <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-400" />
         )}
@@ -279,7 +290,12 @@ export function RequestCardClient({
 
           {/* action row */}
           <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-            <RequestActions requestId={r.id} role={role} status={r.status} />
+            <RequestActions
+              requestId={r.id}
+              role={role}
+              status={r.status}
+              onBusyChange={setRequestActionBusy}
+            />
 
             {isAccepted && (
               <button

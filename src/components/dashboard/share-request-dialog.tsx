@@ -5,6 +5,7 @@ import { useLayoutEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { createShareRequest } from "@/actions/share-requests";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import type { AssetType } from "@/types/database";
 
 type Props = {
@@ -326,7 +327,14 @@ export function ShareRequestDialog({
                 <div className="flex gap-2">
                   <Button type="button" variant="secondary" onClick={close} disabled={pending}>Cancel</Button>
                   <Button type="button" onClick={submit} disabled={pending}>
-                    {pending ? "Sending…" : "Send request"}
+                    {pending ? (
+                      <>
+                        <Spinner className="size-3.5 border-white border-t-transparent" />
+                        Sending…
+                      </>
+                    ) : (
+                      "Send request"
+                    )}
                   </Button>
                 </div>
               </div>
