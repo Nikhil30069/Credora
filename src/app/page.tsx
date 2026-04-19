@@ -43,8 +43,8 @@ const STEPS = [
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.75a2.25 2.25 0 1 1 4.5 0 2.25 2.25 0 0 1-4.5 0Z" />
       </svg>
     ),
-    title: "Sign in with your org email",
-    text: "Use your college or work Google account. Your email domain automatically places you in your private community — no invite needed.",
+    title: "Sign in with your email",
+    text: "Use your college/ work Google account. Your email domain automatically places you in your private community.",
   },
   {
     icon: (
@@ -52,8 +52,8 @@ const STEPS = [
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
       </svg>
     ),
-    title: "List what you're happy to share",
-    text: "Add a card with cashback, a Netflix screen, a Spotify Family slot — whatever you'd share with someone you already trust.",
+    title: "Borrow & Share with your community",
+    text: "Borrow & Share all digital assets like Netflix, Prime, Spotify, Credit Cards etc. with your community members.",
   },
   {
     icon: (
@@ -123,9 +123,6 @@ export default async function HomePage() {
                 Sign in with your work / school email
               </Link>
             </div>
-            <p className="mt-3 text-xs text-[var(--color-credora-slate)]">
-              No credit card required · Your domain = your community
-            </p>
           </div>
 
           {/* Right: brand logo grid */}
