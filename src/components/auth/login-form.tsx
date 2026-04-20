@@ -1,24 +1,27 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { BlockedDomainModal } from "@/components/auth/blocked-domain-modal";
 import { createClient } from "@/lib/supabase/client";
 
 const ERROR_MESSAGES: Record<string, string> = {
   server_config: "Server configuration is incomplete. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
-  blocked_domain:
-    "Consumer email addresses (Gmail, Yahoo, etc.) are not allowed. Please use your organization or institution email to sign in.",
   no_email: "We could not retrieve your email from Google. Try again or use a different Google account.",
   missing_code: "Authentication was interrupted. Please try again.",
   session: "Your session expired. Sign in again.",
 };
 
 export function LoginForm() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const rawError = searchParams.get("error");
-  const errorMessage = rawError
-    ? ERROR_MESSAGES[rawError] ?? decodeURIComponent(rawError)
-    : null;
+  const isBlockedDomain = rawError === "blocked_domain";
+  const errorMessage =
+    rawError && !isBlockedDomain
+      ? ERROR_MESSAGES[rawError] ?? decodeURIComponent(rawError)
+      : null;
 
   const [pending, setPending] = useState(false);
 
@@ -40,7 +43,8 @@ export function LoginForm() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="relative space-y-5">
+      {isBlockedDomain ? <BlockedDomainModal onDismiss={() => router.replace(pathname)} /> : null}
       {errorMessage ? (
         <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5">
           <svg className="mt-0.5 h-4 w-4 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
