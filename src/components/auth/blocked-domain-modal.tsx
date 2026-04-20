@@ -38,17 +38,8 @@ export function BlockedDomainModal({ onDismiss }: Props) {
         aria-label="Close dialog"
       />
       <div className="relative z-10 w-full max-w-md animate-slide-up rounded-2xl border border-[var(--color-credora-line)] bg-white px-6 pb-6 pt-7 shadow-2xl ring-1 ring-black/5">
-        <div className="flex justify-center gap-6 text-5xl leading-none sm:text-6xl sm:gap-8">
-          <span
-            className="inline-block animate-float-slow motion-reduce:animate-none"
-            aria-hidden
-          >
-            😢
-          </span>
-          <span
-            className="inline-block animate-float-slow motion-reduce:animate-none [animation-delay:0.45s]"
-            aria-hidden
-          >
+        <div className="flex justify-center text-5xl leading-none sm:text-6xl">
+          <span className="inline-block animate-float-slow motion-reduce:animate-none" aria-hidden>
             🔜
           </span>
         </div>
@@ -57,7 +48,7 @@ export function BlockedDomainModal({ onDismiss }: Props) {
           id="blocked-domain-title"
           className="mt-5 text-center text-lg font-semibold tracking-tight text-[var(--color-credora-ink)] sm:text-xl"
         >
-          Not your fault — we’re not there yet
+          Personal Email Sign-Up Coming Soon
         </h2>
         <p
           id="blocked-domain-desc"
